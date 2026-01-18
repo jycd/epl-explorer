@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team History</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin-right: 10px;
+            width: 250px;
+        }
+        select {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin-right: 10px;
+            width: 250px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .error {
+            color: #dc3545;
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .nav {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            text-decoration: none;
+            color: #555;
+            border-bottom: 3px solid transparent;
+            font-weight: 600;
+            margin: 0 10px;
+        }
+        .tab:hover {
+            color: #007bff;
+        }
+        .tab.active {
+            color: #007bff;
+            border-bottom: 3px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tabs">
+        <a href="/" class="tab">Standings</a>
+        <a href="/team-history" class="tab active">Team History</a>
+    </div>
+    <h1>Team History</h1>
+    
+    <div class="controls">
+        <select id="teamSelect">
+            <option value="" disabled selected>Loading teams...</option>
+        </select>
+        <button onclick="fetchData()">Show Chart</button>
+    </div>
+
+    <div id="error-message" class="error"></div>
+
+    <canvas id="standingChart" width="800" height="400" style="margin-bottom: 50px;"></canvas>
+    <canvas id="winRateChart" width="800" height="400" style="margin-bottom: 50px;"></canvas>
+    <canvas id="gdChart" width="800" height="400" style="margin-bottom: 50px;"></canvas>
+</div>
+
+<script>
+    let chartInstance = null;
+    let winRateChartInstance = null;
+    let standingChartInstance = null;
+
+    async function loadTeams() {
+        try {
+            const response = await fetch('/api/teams');
+            const teams = await response.json();
+            const select = document.getElementById('teamSelect');
+            select.innerHTML = '';
+            
+            if (teams.length === 0) {
+                const option = document.createElement('option');
+                option.text = "No teams found";
+                select.add(option);
+                return;
+            }
+
+            teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team;
+                option.text = team;
+                select.add(option);
+            });
+            
+            // Select the first team by default and fetch data
+            const urlParams = new URLSearchParams(window.location.search);
+            const teamParam = urlParams.get('team');
+
+            if (teamParam && teams.includes(teamParam)) {
+                select.value = teamParam;
+                fetchData();
+            } else if (teams.length > 0) {
+                select.value = teams[0];
+                fetchData();
+            }
+
+        } catch (error) {
+            console.error('Error loading teams:', error);
+            document.getElementById('error-message').innerText = 'Failed to load teams.';
+        }
+    }
+
+    async function fetchData() {
+        const team = document.getElementById('teamSelect').value;
+        const errorDiv = document.getElementById('error-message');
+        
+        if (!team) {
+            errorDiv.innerText = 'Please select a club.';
+            return;
+        }
+
+        errorDiv.innerText = '';
+
+        try {
+            // Fetch Team History
+            const historyResponse = await fetch(`/api/team-history/${encodeURIComponent(team)}`);
+            if (!historyResponse.ok) {
+                throw new Error('Failed to fetch history data');
+            }
+            const historyData = await historyResponse.json();
+            
+            // Fetch Standing History
+            const standingResponse = await fetch(`/api/team-standing-history/${encodeURIComponent(team)}`);
+            if (!standingResponse.ok) {
+                throw new Error('Failed to fetch standing data');
+            }
+            const standingData = await standingResponse.json();
+
+            if (historyData.length === 0) {
+                errorDiv.innerText = 'No data found for this team.';
+                if (chartInstance) chartInstance.destroy();
+                if (winRateChartInstance) winRateChartInstance.destroy();
+                if (standingChartInstance) standingChartInstance.destroy();
+                return;
+            }
+
+            // The API returns data from newest to oldest
+            historyData.reverse(); 
+            standingData.reverse();
+
+            const labels = historyData.map(d => {
+                const s = d.season;
+                return `20${s.substring(0, 2)}/${s.substring(2, 4)}`;
+            });
+            
+            const gdValues = historyData.map(d => d.goal_difference);
+            const goalsFor = historyData.map(d => d.goals_for);
+            const goalsAgainst = historyData.map(d => d.goals_against);
+            
+            const winRates = historyData.map(d => d.win_rate);
+            const drawRates = historyData.map(d => d.draw_rate);
+            const lossRates = historyData.map(d => d.loss_rate);
+            
+            const wins = historyData.map(d => d.wins);
+            const draws = historyData.map(d => d.draws);
+            const losses = historyData.map(d => d.losses);
+
+            const standingLabels = standingData.map(d => {
+                const s = d.season;
+                return `20${s.substring(0, 2)}/${s.substring(2, 4)}`;
+            });
+            const standings = standingData.map(d => d.position);
+            const fullStandings = standingData.map(d => d.full_standings);
+
+            renderStandingChart(team, standingLabels, standings, fullStandings);
+            renderWinRateChart(team, labels, winRates, drawRates, lossRates, wins, draws, losses);
+            renderGdChart(team, labels, gdValues, goalsFor, goalsAgainst);
+
+        } catch (error) {
+            console.error('Error:', error);
+            errorDiv.innerText = 'Error fetching data. Please try again.';
+        }
+    }
+
+    function renderStandingChart(team, labels, data, fullStandings) {
+        const ctx = document.getElementById('standingChart').getContext('2d');
+        
+        if (standingChartInstance) {
+            standingChartInstance.destroy();
+        }
+
+        standingChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'League Position',
+                    data: data,
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                    tension: 0.1,
+                    fill: false,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        reverse: true, // Invert Y axis so 1st place is at top
+                        min: 1,
+                        max: 20,
+                        ticks: {
+                            stepSize: 1
+                        },
+                        title: {
+                            display: true,
+                            text: 'Position'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Season'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `League Standing History - ${team}`
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                const index = context[0].dataIndex;
+                                const standings = fullStandings[index];
+                                // Only show top 6 and the team's position context if outside top 6
+                                // But user asked for full standing, just position and club name.
+                                // Chart.js tooltips might get too long. Let's try to show it nicely.
+                                return standings;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderWinRateChart(team, labels, winRates, drawRates, lossRates, wins, draws, losses) {
+        const ctx = document.getElementById('winRateChart').getContext('2d');
+        
+        if (winRateChartInstance) {
+            winRateChartInstance.destroy();
+        }
+
+        winRateChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Win Rate (%)',
+                        data: winRates,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'Draw Rate (%)',
+                        data: drawRates,
+                        borderColor: 'rgba(255, 206, 86, 1)',
+                        backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'Loss Rate (%)',
+                        data: lossRates,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Percentage (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Season'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Win/Draw/Loss Rate History - ${team}`
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const index = context.dataIndex;
+                                const datasetLabel = context.dataset.label;
+                                if (datasetLabel.includes('Win')) {
+                                    return `Wins: ${wins[index]}`;
+                                } else if (datasetLabel.includes('Draw')) {
+                                    return `Draws: ${draws[index]}`;
+                                } else if (datasetLabel.includes('Loss')) {
+                                    return `Losses: ${losses[index]}`;
+                                }
+                                return '';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderGdChart(team, labels, values, goalsFor, goalsAgainst) {
+        const ctx = document.getElementById('gdChart').getContext('2d');
+        
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: `${team} Goal Difference`,
+                    data: values,
+                    backgroundColor: values.map(v => v >= 0 ? 'rgba(75, 192, 192, 0.6)' : 'rgba(255, 99, 132, 0.6)'),
+                    borderColor: values.map(v => v >= 0 ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)'),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Goal Difference'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Season'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Goal Difference History - ${team}`
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const index = context.dataIndex;
+                                const gf = goalsFor[index];
+                                const ga = goalsAgainst[index];
+                                return `Goals For: ${gf}\nGoals Against: ${ga}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Load teams on page load
+    window.onload = loadTeams;
+</script>
+
+</body>
+</html>

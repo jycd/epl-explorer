@@ -1,0 +1,23 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PORT=5001
+
+WORKDIR /app
+
+# Install runtime dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src ./src
+COPY src/templates ./templates
+
+# Create a non-root user and switch to it
+RUN adduser --disabled-password --gecos '' appuser || true
+USER appuser
+
+EXPOSE ${PORT}
+
+# Run with gunicorn for production
+CMD ["gunicorn", "-b", "0.0.0.0:5001", "src.app:app", "--workers", "4", "--threads", "2", "--timeout", "120"]

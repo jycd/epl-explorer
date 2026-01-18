@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Detail</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .error {
+            color: #dc3545;
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .nav {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="nav">
+        <a href="/">Back to Standings</a>
+    </div>
+    <h1 id="pageTitle">Team Detail</h1>
+    
+    <div id="error-message" class="error"></div>
+
+    <canvas id="opponentWinRateChart" width="800" height="400"></canvas>
+    
+    <h2 style="text-align: center; margin-top: 50px; color: #2c3e50;">Win Rate by Month</h2>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+        <label for="seasonSelect">Select Season: </label>
+        <select id="seasonSelect" onchange="updateMonthlyChart()">
+            <option value="">All Seasons (Last 10)</option>
+        </select>
+    </div>
+
+    <div style="width: 600px; margin: 0 auto;">
+        <canvas id="monthlyWinRateChart"></canvas>
+    </div>
+</div>
+
+<script>
+    let opponentWinRateChartInstance = null;
+    let monthlyWinRateChartInstance = null;
+    let currentTeam = null;
+
+    async function fetchData() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const team = urlParams.get('team');
+        currentTeam = team;
+        const errorDiv = document.getElementById('error-message');
+        
+        if (!team) {
+            errorDiv.innerText = 'No team specified.';
+            return;
+        }
+
+        document.getElementById('pageTitle').innerText = `${team} - Team Details`;
+        errorDiv.innerText = '';
+
+        try {
+            // Fetch Seasons
+            const seasonsResponse = await fetch('/api/seasons');
+            const seasons = await seasonsResponse.json();
+            const seasonSelect = document.getElementById('seasonSelect');
+            seasons.forEach(season => {
+                const option = document.createElement('option');
+                option.value = season;
+                option.text = season;
+                seasonSelect.appendChild(option);
+            });
+
+            // Fetch Opponent Win Rates
+            const opponentResponse = await fetch(`/api/team-win-rate-against-others/${encodeURIComponent(team)}`);
+            const monthlyResponse = await fetch(`/api/team-win-rate-by-month/${encodeURIComponent(team)}`);
+
+            if (!opponentResponse.ok || !monthlyResponse.ok) {
+                throw new Error('Failed to fetch data');
+            }
+            
+            const opponentData = await opponentResponse.json();
+            const monthlyData = await monthlyResponse.json();
+
+            if (opponentData.length === 0 && monthlyData.length === 0) {
+                errorDiv.innerText = 'No data found for this team.';
+                if (opponentWinRateChartInstance) opponentWinRateChartInstance.destroy();
+                if (monthlyWinRateChartInstance) monthlyWinRateChartInstance.destroy();
+                return;
+            }
+
+            if (opponentData.length > 0) {
+                renderOpponentWinRateChart(team, opponentData);
+            }
+            
+            if (monthlyData.length > 0) {
+                renderMonthlyWinRateChart(team, monthlyData);
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            errorDiv.innerText = 'Error fetching data. Please try again.';
+        }
+    }
+
+    async function updateMonthlyChart() {
+        const season = document.getElementById('seasonSelect').value;
+        const errorDiv = document.getElementById('error-message');
+        
+        try {
+            let url = `/api/team-win-rate-by-month/${encodeURIComponent(currentTeam)}`;
+            if (season) {
+                url += `?season=${season}`;
+            }
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch monthly data');
+            
+            const data = await response.json();
+            renderMonthlyWinRateChart(currentTeam, data);
+            
+        } catch (error) {
+            console.error('Error:', error);
+            errorDiv.innerText = 'Error updating chart.';
+        }
+    }
+
+    function renderMonthlyWinRateChart(team, data) {
+        const ctx = document.getElementById('monthlyWinRateChart').getContext('2d');
+        
+        if (monthlyWinRateChartInstance) {
+            monthlyWinRateChartInstance.destroy();
+        }
+
+        const labels = data.map(d => d.month);
+        const winRates = data.map(d => d.win_rate);
+        const matches = data.map(d => d.matches);
+
+        // Generate colors
+        const backgroundColors = labels.map((_, index) => {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            const hue = (index * 360 / labels.length) % 360;
+            gradient.addColorStop(0, `hsla(${hue}, 70%, 60%, 0.8)`);
+            gradient.addColorStop(1, `hsla(${hue}, 70%, 40%, 0.8)`);
+            return gradient;
+        });
+
+        monthlyWinRateChartInstance = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Win Rate (%)',
+                    data: winRates,
+                    backgroundColor: backgroundColors,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    title: {
+                        display: true,
+                        text: `Win Rate by Month`
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const index = context.dataIndex;
+                                const value = context.raw;
+                                const m = matches[index];
+                                return `${context.label}: ${value}% (Matches: ${m})`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderOpponentWinRateChart(team, data) {
+        const ctx = document.getElementById('opponentWinRateChart').getContext('2d');
+        
+        if (opponentWinRateChartInstance) {
+            opponentWinRateChartInstance.destroy();
+        }
+
+        // Take top 20 opponents for readability
+        const topData = data.slice(0, 20);
+        const labels = topData.map(d => d.opponent);
+        const winRates = topData.map(d => d.win_rate);
+        const matches = topData.map(d => d.matches);
+
+        opponentWinRateChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Win Rate (%)',
+                    data: winRates,
+                    backgroundColor: winRates.map(rate => {
+                        if (rate >= 60) return 'rgba(75, 192, 192, 0.6)'; // High win rate (Green)
+                        if (rate >= 40) return 'rgba(255, 206, 86, 0.6)'; // Medium win rate (Yellow)
+                        return 'rgba(255, 99, 132, 0.6)'; // Low win rate (Red)
+                    }),
+                    borderColor: winRates.map(rate => {
+                        if (rate >= 60) return 'rgba(75, 192, 192, 1)';
+                        if (rate >= 40) return 'rgba(255, 206, 86, 1)';
+                        return 'rgba(255, 99, 132, 1)';
+                    }),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Win Rate (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Opponent'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Win Rate Against Opponents (Last 10 Seasons) - ${team}`
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const index = context.dataIndex;
+                                const m = matches[index];
+                                const wr = winRates[index];
+                                return `Win Rate: ${wr}% (Matches: ${m})`;
+                            }
+                        }
+                    }
+                },
+                onClick: (e) => {
+                    const points = opponentWinRateChartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+                    if (points.length) {
+                        const firstPoint = points[0];
+                        const label = opponentWinRateChartInstance.data.labels[firstPoint.index];
+                        // Navigate to match details page
+                        window.location.href = `/match-details?team=${encodeURIComponent(team)}&opponent=${encodeURIComponent(label)}`;
+                    }
+                }
+            }
+        });
+    }
+    
+    // Load data on page load
+    window.onload = fetchData;
+</script>
+
+</body>
+</html>

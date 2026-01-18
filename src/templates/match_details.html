@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match Details</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+        .nav {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .win {
+            color: green;
+            font-weight: bold;
+        }
+        .loss {
+            color: red;
+            font-weight: bold;
+        }
+        .draw {
+            color: orange;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="nav">
+        <a href="#" id="backLink">Back to Team Detail</a>
+    </div>
+    <h1 id="pageTitle">Match Details</h1>
+    
+    <div id="loading">Loading...</div>
+    <div id="error-message" style="color: red; text-align: center;"></div>
+
+    <table id="matchesTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>Season</th>
+                <th>Date</th>
+                <th>Home Team</th>
+                <th>Score</th>
+                <th>Away Team</th>
+                <th>Result</th>
+            </tr>
+        </thead>
+        <tbody id="matchesBody">
+        </tbody>
+    </table>
+</div>
+
+<script>
+    async function loadMatchDetails() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const team = urlParams.get('team');
+        const opponent = urlParams.get('opponent');
+
+        if (team) {
+            document.getElementById('backLink').href = `/team-detail?team=${encodeURIComponent(team)}`;
+        } else {
+            document.getElementById('backLink').href = `/team-detail`;
+        }
+
+        if (!team || !opponent) {
+            document.getElementById('error-message').innerText = 'Missing team or opponent information.';
+            document.getElementById('loading').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('pageTitle').innerText = `Matches: ${team} vs ${opponent}`;
+
+        try {
+            const response = await fetch(`/api/match-details/${encodeURIComponent(team)}/${encodeURIComponent(opponent)}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch match details');
+            }
+            const matches = await response.json();
+            
+            const tbody = document.getElementById('matchesBody');
+            tbody.innerHTML = '';
+
+            if (matches.length === 0) {
+                document.getElementById('error-message').innerText = 'No matches found.';
+            } else {
+                matches.forEach(match => {
+                    const row = document.createElement('tr');
+                    
+                    let resultText = '';
+                    let resultClass = '';
+                    
+                    if (match.home_team === team) {
+                        if (match.ftr === 'H') { resultText = 'Win'; resultClass = 'win'; }
+                        else if (match.ftr === 'D') { resultText = 'Draw'; resultClass = 'draw'; }
+                        else { resultText = 'Loss'; resultClass = 'loss'; }
+                    } else {
+                        if (match.ftr === 'A') { resultText = 'Win'; resultClass = 'win'; }
+                        else if (match.ftr === 'D') { resultText = 'Draw'; resultClass = 'draw'; }
+                        else { resultText = 'Loss'; resultClass = 'loss'; }
+                    }
+
+                    row.innerHTML = `
+                        <td>${match.season}</td>
+                        <td>${match.date}</td>
+                        <td>${match.home_team}</td>
+                        <td>${match.fthg} - ${match.ftag}</td>
+                        <td>${match.away_team}</td>
+                        <td class="${resultClass}">${resultText}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                document.getElementById('matchesTable').style.display = 'table';
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('error-message').innerText = 'Error loading match details.';
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+    }
+
+    window.onload = loadMatchDetails;
+</script>
+
+</body>
+</html>
