@@ -366,7 +366,7 @@ def get_team_standing_history_service(team_name):
             # Get full standings for tooltip
             full_standings = []
             for i, s in enumerate(stats, 1):
-                full_standings.append(f"{i}. {s['team']}")
+                full_standings.append(f"{i}. {s['team']} ({s['overall']['points']} pts)")
             
             history.append({
                 "season": season,
