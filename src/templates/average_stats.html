@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Average Stats</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/average-stats.css">
+</head>
+<body>
+
+<div class="container">
+    <div class="tabs">
+        <a href="/" class="tab">Standings</a>
+        <a href="/team-history" class="tab">Team History</a>
+        <a href="/average-stats" class="tab active">Average Stats</a>
+    </div>
+
+    <h1>Average Match Statistics</h1>
+
+    <div id="averageStatisticsSection">
+        <div class="controls">
+            <div class="control-group">
+                <label for="teamSelect">Select Team:</label>
+                <select id="teamSelect">
+                    <option value="">Loading teams...</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="statsSeasonSelect">Select Season:</label>
+                <select id="statsSeasonSelect">
+                    <option value="">Loading seasons...</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="loadStatsBtn" onclick="loadAverageStatistics()">Load Statistics</button>
+            </div>
+        </div>
+
+        <div id="statsError" class="error" style="display: none;"></div>
+
+        <div id="statsContainer" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="avgGoalsFor">-</div>
+                    <div class="stat-label">Avg Goals For</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgGoalsAgainst">-</div>
+                    <div class="stat-label">Avg Goals Against</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgFouls">-</div>
+                    <div class="stat-label">Avg Fouls</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgYellowCards">-</div>
+                    <div class="stat-label">Avg Yellow Cards</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgRedCards">-</div>
+                    <div class="stat-label">Avg Red Cards</div>
+                </div>
+            </div>
+
+            <div class="details-table">
+                <h3>Detailed Averages</h3>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Average / Match</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statsDetailBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="statsLoading" class="loading" style="display: none;">
+            Loading average statistics...
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = '/api';
+</script>
+<script src="/static/js/average-stats-page.js"></script>
+
+</body>
+</html>

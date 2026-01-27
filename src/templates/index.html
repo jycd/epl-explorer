@@ -4,157 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EPL Standings</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border-radius: 10px;
-        }
-        .controls {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        select {
-            padding: 10px;
-            font-size: 16px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            margin-right: 10px;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .legend {
-            text-align: center;
-            margin-bottom: 15px;
-            font-size: 0.9em;
-            color: #666;
-        }
-        .legend-item {
-            display: inline-flex;
-            align-items: center;
-            margin: 0 10px;
-        }
-        .color-box {
-            width: 15px;
-            height: 15px;
-            margin-right: 5px;
-            border-radius: 3px;
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            box-shadow: 0 2px 3px rgba(0,0,0,0.05);
-        }
-        th, td {
-            padding: 12px 15px;
-            text-align: center;
-            border-bottom: 1px solid #eee;
-        }
-        th {
-            background-color: #343a40;
-            color: white;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85em;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            user-select: none;
-        }
-        th:hover {
-            background-color: #495057;
-        }
-        .sort-icon {
-            margin-left: 5px;
-            font-size: 0.8em;
-        }
-        tr:last-child td {
-            border-bottom: none;
-        }
-        tr:hover {
-            background-color: #f1f1f1; /* Fallback */
-        }
-        
-        /* Row Colors */
-        .ucl-row {
-            background-color: #d1e7dd;
-            color: #0f5132;
-        }
-        .ucl-row:hover {
-            background-color: #c1d6cc;
-        }
-        
-        .uel-row {
-            background-color: #fff3cd;
-            color: #664d03;
-        }
-        .uel-row:hover {
-            background-color: #ffe69c;
-        }
-        
-        .rel-row {
-            background-color: #f8d7da;
-            color: #842029;
-        }
-        .rel-row:hover {
-            background-color: #f1aeb5;
-        }
-
-        .error {
-            color: #dc3545;
-            text-align: center;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        .tabs {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-        }
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            text-decoration: none;
-            color: #555;
-            border-bottom: 3px solid transparent;
-            font-weight: 600;
-            margin: 0 10px;
-        }
-        .tab:hover {
-            color: #007bff;
-        }
-        .tab.active {
-            color: #007bff;
-            border-bottom: 3px solid #007bff;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/home-page.css">
 </head>
 <body>
 
@@ -162,26 +14,59 @@
     <div class="tabs">
         <a href="/" class="tab active">Standings</a>
         <a href="/team-history" class="tab">Team History</a>
+        <a href="/average-stats" class="tab">Average Stats</a>
     </div>
-    <h1>EPL Season Standings</h1>
-    
+    <h1 id="standingsTitle">EPL Season Standings</h1>
+
+    <div id="standingsSection">
     <div class="controls">
         <label for="seasonSelect">Select Season:</label>
         <select id="seasonSelect">
             <option value="" disabled selected>Loading seasons...</option>
         </select>
         <button onclick="fetchStandings()">Get Standings</button>
+        <label style="margin-left: 20px;">
+            <input type="checkbox" id="includeRecent" onchange="saveRecentMatchesState(); fetchStandings()"> Show Recent Matches
+        </label>
+    </div>
+
+    <div class="search-controls">
+        <div class="search-box">
+            <input type="text" id="teamSearch" class="search-input" placeholder="Search teams..." onkeyup="filterTeams()">
+            <button onclick="clearSearch()">Clear</button>
+        </div>
+        <div class="filter-controls">
+            <select id="positionFilter" onchange="filterTeams()">
+                <option value="">All Positions</option>
+                <option value="1-4">Champions League (1-4)</option>
+                <option value="5">Europa League (5)</option>
+                <option value="6-7">Conference League (6-7)</option>
+                <option value="18-20">Relegation (18-20)</option>
+            </select>
+            <select id="formFilter" onchange="filterTeams()">
+                <option value="">All Form</option>
+                <option value="WWW">3+ Wins</option>
+                <option value="DDD">3+ Draws</option>
+                <option value="LLL">3+ Losses</option>
+            </select>
+        </div>
     </div>
 
     <div class="legend">
-        <span class="legend-item"><span class="color-box" style="background-color: #d1e7dd;"></span> Champions League (1-4)</span>
-        <span class="legend-item"><span class="color-box" style="background-color: #fff3cd;"></span> Europa League (5)</span>
-        <span class="legend-item"><span class="color-box" style="background-color: #f8d7da;"></span> Relegation (Bottom 3)</span>
+        <span class="legend-item"><span class="color-box" style="background-color: var(--ucl-bg);"></span> Champions League (1-4)</span>
+        <span class="legend-item"><span class="color-box" style="background-color: var(--uel-bg);"></span> Europa League (5)</span>
+        <span class="legend-item"><span class="color-box" style="background-color: var(--rel-bg);"></span> Relegation (Bottom 3)</span>
+        <span class="cache-info" id="cacheInfo" style="margin-left: 20px; font-size: 12px; color: #666;">
+            <span id="cacheStatus"></span>
+            <button onclick="clearAllCache()" style="margin-left: 10px; padding: 2px 8px; font-size: 11px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">Clear Cache</button>
+        </span>
     </div>
+
+    <div id="filterResults" class="filter-results" style="display: none;"></div>
 
     <div id="error-message" class="error"></div>
 
-    <table id="standingsTable" style="display: none;">
+    <table id="standingsTable" class="standings-table" style="display: none;">
         <thead>
             <tr>
                 <th onclick="sortTable('position')">Pos <span id="sort-position" class="sort-icon"></span></th>
@@ -194,12 +79,15 @@
                 <th onclick="sortTable('goals_against')">GA <span id="sort-goals_against" class="sort-icon"></span></th>
                 <th onclick="sortTable('goal_difference')">GD <span id="sort-goal_difference" class="sort-icon"></span></th>
                 <th onclick="sortTable('points')">Points <span id="sort-points" class="sort-icon"></span></th>
+                <th id="formHeader" style="display: none;">Form</th>
             </tr>
         </thead>
         <tbody>
             <!-- Rows will be inserted here -->
         </tbody>
     </table>
+    </div>
+
 </div>
 
 <script>
@@ -207,10 +95,143 @@
     let currentStandings = [];
     let sortDirection = {};
 
-    async function loadSeasons() {
+    // Frontend caching configuration
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const CACHE_VERSION = '1.0'; // For cache invalidation
+
+    function saveRecentMatchesState() {
+        const includeRecentCheckbox = document.getElementById('includeRecent');
+        localStorage.setItem('showRecentMatches', includeRecentCheckbox.checked);
+        
+        // Update URL to reflect recent matches state
+        const url = new URL(window.location);
+        if (includeRecentCheckbox.checked) {
+            url.searchParams.set('recent', 'true');
+        } else {
+            url.searchParams.delete('recent');
+        }
+        window.history.replaceState({}, '', url);
+    }
+
+    // Frontend caching functions
+    function getCacheKey(url) {
+        return `cache_${CACHE_VERSION}_${url}`;
+    }
+
+    function getCachedData(url) {
+        const cacheKey = getCacheKey(url);
+        const cached = sessionStorage.getItem(cacheKey);
+        const cachedTime = sessionStorage.getItem(`${cacheKey}_time`);
+        
+        if (cached && cachedTime && (Date.now() - parseInt(cachedTime) < CACHE_DURATION)) {
+            try {
+                return JSON.parse(cached);
+            } catch (e) {
+                console.warn('Invalid cached data, clearing:', cacheKey);
+                sessionStorage.removeItem(cacheKey);
+                sessionStorage.removeItem(`${cacheKey}_time`);
+            }
+        }
+        return null;
+    }
+
+    function setCachedData(url, data) {
+        const cacheKey = getCacheKey(url);
         try {
-            const response = await fetch(`${API_BASE}/seasons`);
-            const seasons = await response.json();
+            sessionStorage.setItem(cacheKey, JSON.stringify(data));
+            sessionStorage.setItem(`${cacheKey}_time`, Date.now().toString());
+        } catch (e) {
+            console.warn('Failed to cache data:', e);
+            // Clear old cache if storage is full
+            clearOldCache();
+        }
+    }
+
+    function clearOldCache() {
+        const keys = Object.keys(sessionStorage);
+        const currentTime = Date.now();
+        
+        keys.forEach(key => {
+            if (key.startsWith('cache_') && key.endsWith('_time')) {
+                const cacheTime = parseInt(sessionStorage.getItem(key));
+                if (currentTime - cacheTime > CACHE_DURATION) {
+                    const dataKey = key.replace('_time', '');
+                    sessionStorage.removeItem(dataKey);
+                    sessionStorage.removeItem(key);
+                }
+            }
+        });
+    }
+
+    function clearAllCache() {
+        const keys = Object.keys(sessionStorage);
+        keys.forEach(key => {
+            if (key.startsWith('cache_')) {
+                sessionStorage.removeItem(key);
+            }
+        });
+        updateCacheStatus();
+        console.log('All frontend cache cleared');
+    }
+
+    function updateCacheStatus() {
+        const cacheKeys = Object.keys(sessionStorage).filter(key => key.startsWith('cache_') && !key.endsWith('_time'));
+        const cacheCount = cacheKeys.length;
+        const statusElement = document.getElementById('cacheStatus');
+        
+        if (cacheCount === 0) {
+            statusElement.textContent = 'Cache: Empty';
+            statusElement.style.color = '#999';
+        } else {
+            statusElement.textContent = `Cache: ${cacheCount} items cached`;
+            statusElement.style.color = '#28a745';
+        }
+    }
+
+    // Enhanced fetch with caching
+    async function fetchWithCache(url) {
+        // Try to get from cache first
+        const cachedData = getCachedData(url);
+        if (cachedData) {
+            console.log(`Using cached data for: ${url}`);
+            updateCacheStatus();
+            return cachedData;
+        }
+
+        // Fetch from API
+        try {
+            console.log(`Fetching fresh data for: ${url}`);
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+            
+            // Cache the response
+            setCachedData(url, data);
+            updateCacheStatus();
+            return data;
+        } catch (error) {
+            console.error('Fetch error:', error);
+            // Try to return stale cache if available
+            const staleCache = sessionStorage.getItem(getCacheKey(url));
+            if (staleCache) {
+                console.warn('API failed, returning stale cache for:', url);
+                return JSON.parse(staleCache);
+            }
+            throw error;
+        }
+    }
+
+    async function loadSeasons() {
+        // Initialize cache status
+        updateCacheStatus();
+        
+        // Show skeleton loading for seasons dropdown
+        showSeasonsSkeleton();
+        
+        try {
+            const seasons = await fetchWithCache(`${API_BASE}/seasons`);
             const select = document.getElementById('seasonSelect');
             select.innerHTML = '';
             
@@ -228,9 +249,37 @@
                 select.add(option);
             });
             
-            // Select the first season by default and fetch standings
-            if (seasons.length > 0) {
+            // Restore checkbox state from localStorage
+            const savedRecentState = localStorage.getItem('showRecentMatches');
+            const includeRecentCheckbox = document.getElementById('includeRecent');
+            if (savedRecentState !== null) {
+                includeRecentCheckbox.checked = savedRecentState === 'true';
+            }
+            
+            // Check URL parameters for season and recent matches
+            const urlParams = new URLSearchParams(window.location.search);
+            const seasonParam = urlParams.get('season');
+            const recentParam = urlParams.get('recent');
+            
+            // Set season from URL or use first season
+            if (seasonParam && seasons.includes(seasonParam)) {
+                select.value = seasonParam;
+            } else if (seasons.length > 0) {
                 select.value = seasons[0];
+                // Update URL to reflect the default selection
+                const url = new URL(window.location);
+                url.searchParams.set('season', seasons[0]);
+                window.history.replaceState({}, '', url);
+            }
+            
+            // Set recent matches from URL
+            if (recentParam !== null) {
+                includeRecentCheckbox.checked = recentParam === 'true';
+                localStorage.setItem('showRecentMatches', recentParam);
+            }
+            
+            // Auto-fetch if season is selected
+            if (select.value) {
                 fetchStandings();
             }
 
@@ -240,11 +289,57 @@
         }
     }
 
+    function showSkeletonLoader(includeRecent = false) {
+        const numSkeletonRows = 20; // Show 20 skeleton rows
+        const formColspan = includeRecent ? 11 : 10;
+        
+        return Array(numSkeletonRows).fill('').map(() => `
+            <tr class="skeleton-row">
+                <td><div class="skeleton skeleton-position"></div></td>
+                <td><div class="skeleton skeleton-team"></div></td>
+                <td><div class="skeleton skeleton-number"></div></td>
+                <td><div class="skeleton skeleton-number"></div></td>
+                <td><div class="skeleton skeleton-number"></div></td>
+                <td><div class="skeleton skeleton-number"></div></td>
+                <td><div class="skeleton skeleton-number"></div></td>
+                <td><div class="skeleton skeleton-number"></div></td>
+                <td><div class="skeleton skeleton-number"></div></td>
+                <td><div class="skeleton skeleton-number"></div></td>
+                ${includeRecent ? '<td><div class="skeleton skeleton-form"></div></td>' : ''}
+            </tr>
+        `).join('');
+    }
+
+    function showSeasonsSkeleton() {
+        const select = document.getElementById('seasonSelect');
+        select.innerHTML = '';
+        
+        // Add skeleton options
+        for (let i = 0; i < 5; i++) {
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.innerHTML = `<div class="skeleton skeleton-text" style="width: 80px; height: 16px;"></div>`;
+            select.add(option);
+        }
+    }
+
     async function fetchStandings() {
         const season = document.getElementById('seasonSelect').value;
+        const includeRecent = document.getElementById('includeRecent').checked;
         const table = document.getElementById('standingsTable');
         const tbody = table.querySelector('tbody');
         const errorDiv = document.getElementById('error-message');
+        const formHeader = document.getElementById('formHeader');
+
+        // Update URL to reflect the current selections
+        const url = new URL(window.location);
+        url.searchParams.set('season', season);
+        if (includeRecent) {
+            url.searchParams.set('recent', 'true');
+        } else {
+            url.searchParams.delete('recent');
+        }
+        window.history.replaceState({}, '', url);
 
         if (!season) {
             errorDiv.innerText = 'Please select a season.';
@@ -252,27 +347,33 @@
         }
 
         errorDiv.innerText = '';
-        tbody.innerHTML = '<tr><td colspan="10">Loading...</td></tr>';
+        tbody.innerHTML = showSkeletonLoader(includeRecent);
         table.style.display = 'table';
 
+        // Show/hide form column based on checkbox
+        formHeader.style.display = includeRecent ? 'table-cell' : 'none';
+
         try {
-            const response = await fetch(`${API_BASE}/standings/${season}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch standings');
-            }
-            const standings = await response.json();
+            const url = includeRecent ? 
+                `${API_BASE}/standings/${season}?include_recent=true` : 
+                `${API_BASE}/standings/${season}`;
+            
+            const standings = await fetchWithCache(url);
             currentStandings = standings;
 
-            renderTable(currentStandings);
+            // Clear filters when new data loads
+            clearSearch();
+            renderTable(currentStandings, includeRecent);
 
         } catch (error) {
             console.error('Error fetching standings:', error);
-            errorDiv.innerText = 'Failed to fetch standings. Please try again.';
+            const message = (error && error.message) ? error.message : String(error);
+            errorDiv.innerText = `Failed to load standings. Please try again. (${message})`;
             tbody.innerHTML = '';
         }
     }
 
-    function renderTable(data) {
+    function renderTable(data, includeRecent = false) {
         const table = document.getElementById('standingsTable');
         const tbody = table.querySelector('tbody');
         const totalTeams = data.length;
@@ -280,7 +381,8 @@
         tbody.innerHTML = '';
         
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10">No data available for this season.</td></tr>';
+            const colspan = includeRecent ? 11 : 10;
+            tbody.innerHTML = `<tr><td colspan="${colspan}">No data available for this season.</td></tr>`;
             return;
         }
 
@@ -292,8 +394,40 @@
                 row.classList.add('ucl-row');
             } else if (team.position === 5) {
                 row.classList.add('uel-row');
-            } else if (team.position > totalTeams - 3) {
+            } else if (team.position >= 18) {
                 row.classList.add('rel-row');
+            }
+
+            let formCell = '';
+            if (includeRecent && team.form) {
+                const recentMatches = team.recent_matches || [];
+                
+                // Create individual match badges with tooltips
+                const formDisplay = team.form.split('').map((result, index) => {
+                    const cssClass = result === 'W' ? 'form-win' : 
+                                   result === 'D' ? 'form-draw' : 'form-loss';
+                    
+                    if (index < recentMatches.length) {
+                        const match = recentMatches[index];
+                        const venue = match.home ? '(H)' : '(A)';
+                        const tooltipText = `${match.date} ${venue} ${match.opponent} (${match.score})`;
+                        
+                        return `
+                            <div class="tooltip">
+                                <div class="form-match ${cssClass}">${result}</div>
+                                <div class="tooltiptext">${tooltipText}</div>
+                            </div>
+                        `;
+                    } else {
+                        return `<div class="form-match ${cssClass}">${result}</div>`;
+                    }
+                }).join('');
+                
+                formCell = `
+                    <td class="form-cell">
+                        <div class="form-display">${formDisplay}</div>
+                    </td>
+                `;
             }
 
             row.innerHTML = `
@@ -311,9 +445,82 @@
                 <td>${team.goals_against}</td>
                 <td>${team.goal_difference}</td>
                 <td><strong>${team.points}</strong></td>
+                ${formCell}
             `;
             tbody.appendChild(row);
         });
+    }
+
+    // Search and Filter Functions
+    function filterTeams() {
+        if (!currentStandings || currentStandings.length === 0) return;
+
+        const searchTerm = document.getElementById('teamSearch').value.toLowerCase();
+        const positionFilter = document.getElementById('positionFilter').value;
+        const formFilter = document.getElementById('formFilter').value;
+        
+        let filteredData = currentStandings.filter(team => {
+            const matchesSearch = team.team.toLowerCase().includes(searchTerm);
+            const matchesPosition = !positionFilter || checkPositionRange(team.position, positionFilter);
+            const matchesForm = !formFilter || (team.form && checkFormPattern(team.form, formFilter));
+            
+            return matchesSearch && matchesPosition && matchesForm;
+        });
+        
+        renderTable(filteredData, document.getElementById('includeRecent').checked);
+        updateFilterResults(filteredData.length, currentStandings.length);
+    }
+
+    function checkPositionRange(position, range) {
+        if (range.includes('-')) {
+            const [min, max] = range.split('-').map(Number);
+            return position >= min && position <= max;
+        }
+        return position == parseInt(range);
+    }
+
+    function checkFormPattern(form, pattern) {
+        if (!form || !pattern) return false;
+        
+        // Check for consecutive patterns (WWW, DDD, LLL)
+        if (pattern === 'WWW' || pattern === 'DDD' || pattern === 'LLL') {
+            return form.includes(pattern);
+        }
+        
+        return false;
+    }
+
+    function clearSearch() {
+        document.getElementById('teamSearch').value = '';
+        document.getElementById('positionFilter').value = '';
+        document.getElementById('formFilter').value = '';
+        
+        if (currentStandings && currentStandings.length > 0) {
+            renderTable(currentStandings, document.getElementById('includeRecent').checked);
+            updateFilterResults(currentStandings.length, currentStandings.length, true);
+        }
+    }
+
+    function updateFilterResults(filteredCount, totalCount, cleared = false) {
+        const resultsDiv = document.getElementById('filterResults');
+        
+        if (cleared) {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+        
+        if (filteredCount === 0) {
+            resultsDiv.innerHTML = 'No teams match your search criteria.';
+            resultsDiv.className = 'filter-results no-results';
+        } else if (filteredCount < totalCount) {
+            resultsDiv.innerHTML = `Showing ${filteredCount} of ${totalCount} teams`;
+            resultsDiv.className = 'filter-results';
+        } else {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+        
+        resultsDiv.style.display = 'block';
     }
 
     function sortTable(column) {
@@ -355,11 +562,14 @@
             return 0;
         });
 
-        renderTable(currentStandings);
+        const includeRecent = document.getElementById('includeRecent').checked;
+        renderTable(currentStandings, includeRecent);
     }
 
     // Load seasons on page load
-    window.onload = loadSeasons;
+    window.onload = function() {
+        loadSeasons();
+    };
 </script>
 
 </body>

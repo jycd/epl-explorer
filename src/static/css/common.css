@@ -1,0 +1,289 @@
+/* Common Styles - Shared across all pages */
+
+/* CSS Custom Properties (Variables) */
+:root {
+    /* Match Result Colors */
+    --win-bg: #d1e7dd;
+    --win-text: #0f5132;
+    --draw-bg: #64748b;
+    --draw-text: #ffffff;
+    --loss-bg: #f8d7da;
+    --loss-text: #721c24;
+    
+    /* Form Colors */
+    --form-win: #16a34a;
+    --form-draw: #64748b;
+    --form-loss: #dc2626;
+    
+    /* Competition Colors */
+    --ucl-bg: rgba(16, 185, 129, 0.1);
+    --uel-bg: rgba(59, 130, 246, 0.1);
+    --rel-bg: rgba(239, 68, 68, 0.1);
+    --eur-bg: rgba(245, 158, 11, 0.1);
+    
+    /* Chart Colors */
+    --chart-green: #22c55e;
+    --chart-yellow: #fbbf24;
+    --chart-red: #f87171;
+    --chart-purple: #667eea;
+    
+    /* Text Colors */
+    --text-muted: #64748b;
+    --text-secondary: #6b7280;
+    --text-primary: #1f2937;
+}
+
+/* Base body styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+}
+
+/* Common headings */
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-weight: 700;
+    font-size: 2.2rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+h2 {
+    color: #374151;
+    margin-bottom: 20px;
+    font-weight: 600;
+    text-align: center;
+    font-size: 1.4rem;
+}
+
+/* Common container */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 40px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Common tabs */
+.tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e1e8ed;
+    background: #f8fafc;
+    border-radius: 12px 12px 0 0;
+    padding: 0 20px;
+}
+
+.tab {
+    padding: 14px 24px;
+    cursor: pointer;
+    text-decoration: none;
+    color: #64748b;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    margin: 0 5px;
+    transition: all 0.3s ease;
+    border-radius: 8px 8px 0 0;
+}
+
+.tab:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.tab.active {
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+/* Common controls */
+.controls {
+    text-align: center;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+select {
+    padding: 12px 16px;
+    font-size: 16px;
+    border-radius: 10px;
+    border: 1px solid #e1e8ed;
+    margin-right: 0;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    cursor: pointer;
+}
+
+select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+button {
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+button:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Common error styling */
+.error {
+    color: #dc3545;
+    text-align: center;
+    margin-top: 15px;
+    font-weight: 600;
+    padding: 12px;
+    background: rgba(220, 53, 69, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+/* Common chart container */
+.chart-container {
+    position: relative;
+    margin: 0 0 40px 0;
+    height: 450px;
+    width: 100%;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: 16px;
+    padding: 10px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e1e8ed;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: calc(100% - 20px);
+    max-height: calc(100% - 20px);
+}
+
+.chart-loading {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 10;
+    border-radius: 12px;
+}
+
+.chart-loading .skeleton {
+    width: 85%;
+    height: 70%;
+    border-radius: 12px;
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Common navigation */
+.nav {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.nav a {
+    text-decoration: none;
+    color: #667eea;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.nav a:hover {
+    background: rgba(102, 126, 234, 0.1);
+    color: #5a67d8;
+}
+
+/* Common responsive design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 25px;
+        margin: 0;
+        border-radius: 16px;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+        margin-bottom: 25px;
+    }
+
+    h2 {
+        font-size: 1.2rem;
+    }
+
+    .controls {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .chart-container {
+        height: 350px;
+        padding: 10px;
+    }
+
+    .tabs {
+        padding: 0 10px;
+        margin-bottom: 25px;
+    }
+
+    .tab {
+        padding: 12px 16px;
+        font-size: 14px;
+        margin: 0 2px;
+    }
+}

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from src.services import (
     get_season_stats_service,
     get_standings_service,
@@ -9,7 +9,9 @@ from src.services import (
     get_team_win_rate_by_month_service,
     get_all_teams_service,
     get_team_win_rate_against_others_service,
-    get_team_standing_history_service
+    get_team_standing_history_service,
+    get_team_average_match_statistics_service,
+    clear_cache
 )
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -23,7 +25,10 @@ def get_season_stats(season):
 
 @api_bp.route('/standings/<season>', methods=['GET'])
 def get_season_standings(season):
-    standings = get_standings_service(season)
+    from flask import request
+    include_recent = request.args.get('include_recent', 'false').lower() == 'true'
+    
+    standings = get_standings_service(season, include_recent_matches=include_recent)
     if standings is None:
         return jsonify({"error": "Season not found"}), 404
     return jsonify(standings)
@@ -77,3 +82,33 @@ def get_match_details(team_name, opponent_name):
 def get_team_standing_history(team_name):
     history = get_team_standing_history_service(team_name)
     return jsonify(history)
+
+@api_bp.route('/team-average-statistics/<team_name>', methods=['GET'])
+def get_team_average_statistics(team_name):
+    """Get average match statistics for a team"""
+    season = request.args.get('season')
+    if not season:
+        return jsonify({"error": "Season parameter is required"}), 400
+    
+    stats = get_team_average_match_statistics_service(team_name, season)
+    if stats is None:
+        return jsonify({"error": "No data found for this team and season"}), 404
+    
+    return jsonify(stats)
+
+@api_bp.route('/cache/clear', methods=['POST'])
+def clear_cache_endpoint():
+    """Clear all cache - useful for debugging or when data updates"""
+    clear_cache()
+    return jsonify({"message": "Cache cleared successfully"})
+
+@api_bp.route('/cache/status', methods=['GET'])
+def cache_status():
+    """Get cache status for monitoring"""
+    from src.services import _cache
+    cache_info = {
+        "cache_size": len(_cache),
+        "cache_ttl_seconds": 300,
+        "cached_endpoints": list(_cache.keys())
+    }
+    return jsonify(cache_info)

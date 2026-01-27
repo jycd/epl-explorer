@@ -1,9 +1,104 @@
 import glob
 import os
 import pandas as pd
+import time
+from functools import lru_cache
 from src.utils import load_data, calculate_team_stats
 
-DATA_DIR = "data"
+# Get the absolute path to the data directory
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+
+# Cache configuration
+CACHE_TTL = 300  # 5 minutes in seconds
+_cache = {}
+
+def get_cache_key(func_name, *args, **kwargs):
+    """Generate a unique cache key"""
+    return f"{func_name}:{hash(str(args) + str(sorted(kwargs.items())))}"
+
+def is_cache_valid(timestamp):
+    """Check if cache is still valid"""
+    return time.time() - timestamp < CACHE_TTL
+
+def get_from_cache(cache_key):
+    """Get data from cache if valid"""
+    if cache_key in _cache:
+        data, timestamp = _cache[cache_key]
+        if is_cache_valid(timestamp):
+            return data
+        else:
+            # Remove expired cache
+            del _cache[cache_key]
+    return None
+
+def set_cache(cache_key, data):
+    """Set data in cache with timestamp"""
+    _cache[cache_key] = (data, time.time())
+
+def clear_cache():
+    """Clear all cache"""
+    global _cache
+    _cache = {}
+
+def get_team_recent_matches(df, team_name, num_matches=5):
+    """Get the latest N matches for a team with results"""
+    # Filter matches involving the team
+    team_matches = df[(df['HomeTeam'] == team_name) | (df['AwayTeam'] == team_name)].copy()
+    
+    if team_matches.empty:
+        return []
+    
+    # Convert Date to datetime for proper sorting
+    try:
+        team_matches['Date'] = pd.to_datetime(team_matches['Date'], dayfirst=True)
+    except Exception:
+        return []
+    
+    # Sort by date descending (most recent first)
+    team_matches = team_matches.sort_values('Date', ascending=False)
+    
+    # Get the latest N matches
+    recent_matches = team_matches.head(num_matches)
+    
+    # Format match results
+    matches = []
+    for _, match in recent_matches.iterrows():
+        is_home = match['HomeTeam'] == team_name
+        opponent = match['AwayTeam'] if is_home else match['HomeTeam']
+        
+        # Determine result
+        if is_home:
+            if match['FTR'] == 'H':
+                result = 'W'
+                score = f"{match['FTHG']}-{match['FTAG']}"
+            elif match['FTR'] == 'D':
+                result = 'D'
+                score = f"{match['FTHG']}-{match['FTAG']}"
+            else:  # 'A'
+                result = 'L'
+                score = f"{match['FTHG']}-{match['FTAG']}"
+        else:  # Away team
+            if match['FTR'] == 'A':
+                result = 'W'
+                score = f"{match['FTAG']}-{match['FTHG']}"
+            elif match['FTR'] == 'D':
+                result = 'D'
+                score = f"{match['FTAG']}-{match['FTHG']}"
+            else:  # 'H'
+                result = 'L'
+                score = f"{match['FTAG']}-{match['FTHG']}"
+        
+        matches.append({
+            'opponent': opponent,
+            'result': result,
+            'score': score,
+            'home': is_home,
+            'date': match['Date'].strftime('%Y-%m-%d')
+        })
+    
+    # Reverse to show oldest first, newest last (so newest appears on right)
+    matches.reverse()
+    return matches
 
 def get_season_stats_service(season):
     df = load_data(season, DATA_DIR)
@@ -11,7 +106,13 @@ def get_season_stats_service(season):
         return None
     return calculate_team_stats(df)
 
-def get_standings_service(season):
+def get_standings_service(season, include_recent_matches=False):
+    # Check cache first
+    cache_key = get_cache_key('get_standings_service', season, include_recent_matches)
+    cached_result = get_from_cache(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
     df = load_data(season, DATA_DIR)
     if df is None:
         return None
@@ -22,9 +123,10 @@ def get_standings_service(season):
     
     standings = []
     for i, team_stat in enumerate(stats, 1):
-        standings.append({
+        team_name = team_stat['team']
+        standing_data = {
             "position": i,
-            "team": team_stat['team'],
+            "team": team_name,
             "played": team_stat['overall']['matches'],
             "won": team_stat['overall']['wins'],
             "drawn": team_stat['overall']['draws'],
@@ -33,8 +135,39 @@ def get_standings_service(season):
             "goals_against": team_stat['overall']['goals_against'],
             "goal_difference": team_stat['overall']['goal_difference'],
             "points": team_stat['overall']['points']
-        })
+        }
+        
+        # Add recent matches if requested
+        if include_recent_matches:
+            recent_matches = get_team_recent_matches(df, team_name, 5)
+            standing_data["recent_matches"] = recent_matches
+            
+            # Calculate recent form summary (e.g., "WWLDW")
+            form = ''.join([match['result'] for match in recent_matches])
+            standing_data["form"] = form
+        
+        standings.append(standing_data)
+    
+    # Cache the result
+    set_cache(cache_key, standings)
     return standings
+
+def get_team_recent_matches_service(season, team_name, num_matches=5):
+    """Get the latest N matches for a specific team"""
+    # Check cache first
+    cache_key = get_cache_key('get_team_recent_matches_service', season, team_name, num_matches)
+    cached_result = get_from_cache(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
+    df = load_data(season, DATA_DIR)
+    if df is None:
+        return None
+    
+    result = get_team_recent_matches(df, team_name, num_matches)
+    # Cache the result
+    set_cache(cache_key, result)
+    return result
 
 def get_head_to_head_service(season):
     df = load_data(season, DATA_DIR)
@@ -82,9 +215,19 @@ def get_head_to_head_service(season):
     return stats
 
 def get_available_seasons_service():
+    # Check cache first
+    cache_key = get_cache_key('get_available_seasons_service')
+    cached_result = get_from_cache(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
     files = glob.glob(os.path.join(DATA_DIR, "*_E0.csv"))
     seasons = [os.path.basename(f).split('_')[0] for f in files]
-    return sorted(seasons, reverse=True)
+    result = sorted(seasons, reverse=True)
+    
+    # Cache the result (this rarely changes, so we can cache longer)
+    set_cache(cache_key, result)
+    return result
 
 def get_team_history_service(team_name):
     files = sorted(glob.glob(os.path.join(DATA_DIR, "*_E0.csv")), reverse=True)
@@ -375,3 +518,81 @@ def get_team_standing_history_service(team_name):
             })
             
     return history
+
+def get_team_average_match_statistics_service(team_name, season):
+    """
+    Calculate average match statistics for a team in a given season.
+    Returns average goals for/against, fouls, yellow cards, and red cards per match.
+    """
+    cache_key = get_cache_key(f'get_team_average_match_statistics_service_{team_name}_{season}')
+    cached_result = get_from_cache(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
+    df = load_data(season, DATA_DIR)
+    if df is None:
+        return None
+    
+    # Get matches for the specific team
+    home_matches = df[df['HomeTeam'] == team_name].copy()
+    away_matches = df[df['AwayTeam'] == team_name].copy()
+    
+    if home_matches.empty and away_matches.empty:
+        return None
+    
+    # Combine all matches
+    all_matches = pd.concat([home_matches, away_matches], ignore_index=True)
+    total_matches = len(all_matches)
+    
+    if total_matches == 0:
+        return None
+    
+    # Calculate averages for each statistic
+    total_goals_for = 0
+    total_goals_against = 0
+    total_fouls = 0
+    total_yellow_cards = 0
+    total_red_cards = 0
+    
+    for _, match in all_matches.iterrows():
+        if match['HomeTeam'] == team_name:
+            # Home match
+            total_goals_for += match['FTHG']
+            total_goals_against += match['FTAG']
+            total_fouls += match['HF']
+            total_yellow_cards += match['HY']
+            total_red_cards += match['HR']
+        else:
+            # Away match
+            total_goals_for += match['FTAG']
+            total_goals_against += match['FTHG']
+            total_fouls += match['AF']
+            total_yellow_cards += match['AY']
+            total_red_cards += match['AR']
+    
+    # Calculate averages
+    avg_goals_for = round(total_goals_for / total_matches, 2)
+    avg_goals_against = round(total_goals_against / total_matches, 2)
+    avg_fouls = round(total_fouls / total_matches, 2)
+    avg_yellow_cards = round(total_yellow_cards / total_matches, 2)
+    avg_red_cards = round(total_red_cards / total_matches, 2)
+    
+    result = {
+        'team': team_name,
+        'season': season,
+        'total_matches': total_matches,
+        'average_goals_for_per_match': avg_goals_for,
+        'average_goals_against_per_match': avg_goals_against,
+        'average_fouls_per_match': avg_fouls,
+        'average_yellow_cards_per_match': avg_yellow_cards,
+        'average_red_cards_per_match': avg_red_cards,
+        'total_goals_for': total_goals_for,
+        'total_goals_against': total_goals_against,
+        'total_fouls': total_fouls,
+        'total_yellow_cards': total_yellow_cards,
+        'total_red_cards': total_red_cards
+    }
+    
+    # Cache the result
+    set_cache(cache_key, result)
+    return result

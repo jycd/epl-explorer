@@ -5,71 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team Detail</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border-radius: 10px;
-        }
-        .error {
-            color: #dc3545;
-            text-align: center;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        .nav {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .nav a {
-            text-decoration: none;
-            color: #007bff;
-            font-weight: bold;
-        }
-        .nav a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/team-detail.css">
 </head>
 <body>
 
-<div class="container">
-    <div class="nav">
-        <a href="/">Back to Standings</a>
-    </div>
-    <h1 id="pageTitle">Team Detail</h1>
-    
-    <div id="error-message" class="error"></div>
+    <div class="container">
+        <div class="tabs">
+            <a href="/" class="tab">Standings</a>
+            <a href="/team-history" class="tab">Team History</a>
+            <a href="/average-stats" class="tab">Average Stats</a>
+        </div>
+        <h1 id="pageTitle">Team Detail</h1>
+        
+        <div id="error-message" class="error"></div>
 
-    <canvas id="opponentWinRateChart" width="800" height="400"></canvas>
-    
-    <h2 style="text-align: center; margin-top: 50px; color: #2c3e50;">Win Rate by Month</h2>
-    
-    <div style="text-align: center; margin-bottom: 20px;">
-        <label for="seasonSelect">Select Season: </label>
-        <select id="seasonSelect" onchange="updateMonthlyChart()">
-            <option value="">All Seasons (Last 10)</option>
-        </select>
-    </div>
+        <div class="chart-container">
+            <div class="chart-loading" id="opponentLoading" style="display: none;">
+                <div class="skeleton"></div>
+            </div>
+            <canvas id="opponentWinRateChart"></canvas>
+        </div>
+        
+        <h2>Win Rate by Month</h2>
+        
+        <div class="controls">
+            <label for="seasonSelect">Select Season:</label>
+            <select id="seasonSelect" onchange="updateMonthlyChart()">
+                <option value="">All Seasons (Last 10)</option>
+            </select>
+        </div>
 
-    <div style="width: 600px; margin: 0 auto;">
-        <canvas id="monthlyWinRateChart"></canvas>
+        <div class="chart-container">
+            <div class="chart-loading" id="monthlyLoading" style="display: none;">
+                <div class="skeleton"></div>
+            </div>
+            <canvas id="monthlyWinRateChart"></canvas>
+        </div>
     </div>
-</div>
 
 <script>
     let opponentWinRateChartInstance = null;
@@ -189,15 +162,37 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'right',
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            font: {
+                                size: 12
+                            }
+                        }
                     },
                     title: {
                         display: true,
-                        text: `Win Rate by Month`
+                        text: `Win Rate by Month`,
+                        font: {
+                            size: 16
+                        },
+                        align: 'center',
+                        padding: {
+                            bottom: 20
+                        }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'var(--chart-purple)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
                         callbacks: {
                             label: function(context) {
                                 const index = context.dataIndex;
@@ -232,41 +227,89 @@
                 datasets: [{
                     label: 'Win Rate (%)',
                     data: winRates,
-                    backgroundColor: winRates.map(rate => {
-                        if (rate >= 60) return 'rgba(75, 192, 192, 0.6)'; // High win rate (Green)
-                        if (rate >= 40) return 'rgba(255, 206, 86, 0.6)'; // Medium win rate (Yellow)
-                        return 'rgba(255, 99, 132, 0.6)'; // Low win rate (Red)
-                    }),
-                    borderColor: winRates.map(rate => {
-                        if (rate >= 60) return 'rgba(75, 192, 192, 1)';
-                        if (rate >= 40) return 'rgba(255, 206, 86, 1)';
-                        return 'rgba(255, 99, 132, 1)';
-                    }),
-                    borderWidth: 1
+                    backgroundColor: '#667eea',
+                    borderColor: '#667eea',
+                    borderWidth: 2,
+                    hoverBackgroundColor: '#667eea',
+                    hoverBorderColor: '#667eea',
+                    hoverBorderWidth: 3
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'var(--chart-purple)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12
+                    }
+                },
                 scales: {
                     y: {
                         beginAtZero: true,
                         max: 100,
+                        ticks: {
+                            font: {
+                                size: 12,
+                                weight: '500'
+                            },
+                            color: 'var(--text-muted)'
+                        },
                         title: {
                             display: true,
-                            text: 'Win Rate (%)'
+                            text: 'Win Rate (%)',
+                            font: {
+                                size: 14,
+                                weight: '600'
+                            },
+                            color: 'var(--text-primary)'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
                         }
                     },
                     x: {
+                        ticks: {
+                            font: {
+                                size: 12,
+                                weight: '500'
+                            },
+                            color: 'var(--text-muted)'
+                        },
                         title: {
                             display: true,
-                            text: 'Opponent'
+                            text: 'Opponent',
+                            font: {
+                                size: 14,
+                                weight: '600'
+                            },
+                            color: 'var(--text-primary)'
+                        },
+                        grid: {
+                            display: false
                         }
                     }
                 },
                 plugins: {
                     title: {
                         display: true,
-                        text: `Win Rate Against Opponents (Last 10 Seasons) - ${team}`
+                        text: `Win Rate Against Opponents (Last 10 Seasons) - ${team}`,
+                        font: {
+                            size: 16,
+                            weight: '600'
+                        },
+                        color: 'var(--text-primary)',
+                        padding: {
+                            bottom: 20
+                        }
                     },
                     tooltip: {
                         callbacks: {

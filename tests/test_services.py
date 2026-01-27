@@ -1,12 +1,14 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from src.services import (
-    get_season_stats_service,
     get_standings_service,
+    get_team_recent_matches_service,
+    get_team_recent_matches,
     get_head_to_head_service,
     get_available_seasons_service,
     get_team_history_service,
     get_team_win_rate_by_month_service,
+    get_season_stats_service,
     get_match_details_service
 )
 
@@ -88,3 +90,94 @@ def test_get_match_details_service():
     assert match['away_team'] == "Man City"
     assert match['fthg'] == 0
     assert match['ftag'] == 3
+
+def test_get_standings_service_with_recent_matches():
+    """Test standings service with recent matches included"""
+    standings = get_standings_service("2324", include_recent_matches=True)
+    assert standings is not None
+    assert len(standings) > 0
+    
+    # Check that recent matches are included
+    first_team = standings[0]
+    assert 'recent_matches' in first_team
+    assert 'form' in first_team
+    assert len(first_team['recent_matches']) <= 5
+    
+    # Check recent match structure
+    if first_team['recent_matches']:
+        match = first_team['recent_matches'][0]
+        assert 'opponent' in match
+        assert 'result' in match
+        assert 'score' in match
+        assert 'home' in match
+        assert 'date' in match
+        assert match['result'] in ['W', 'D', 'L']
+
+def test_get_standings_service_backward_compatibility():
+    """Test that standings service works without recent matches (backward compatibility)"""
+    standings = get_standings_service("2324", include_recent_matches=False)
+    assert standings is not None
+    assert len(standings) > 0
+    
+    # Check that recent matches are NOT included
+    first_team = standings[0]
+    assert 'recent_matches' not in first_team
+    assert 'form' not in first_team
+
+def test_get_team_recent_matches_service():
+    """Test getting recent matches for a specific team"""
+    matches = get_team_recent_matches_service("2324", "Arsenal")
+    assert matches is not None
+    assert len(matches) <= 5
+    
+    # Check match structure
+    if matches:
+        match = matches[0]
+        assert 'opponent' in match
+        assert 'result' in match
+        assert 'score' in match
+        assert 'home' in match
+        assert 'date' in match
+        assert match['result'] in ['W', 'D', 'L']
+
+def test_get_team_recent_matches_service_invalid_team():
+    """Test getting recent matches for a non-existent team"""
+    matches = get_team_recent_matches_service("2324", "NonExistentTeam")
+    assert matches == []
+
+def test_get_team_recent_matches_service_invalid_season():
+    """Test getting recent matches for invalid season"""
+    matches = get_team_recent_matches_service("9999", "Arsenal")
+    assert matches is None
+
+@patch('src.services.load_data')
+def test_get_team_recent_matches_helper(mock_load_data):
+    """Test the helper function get_team_recent_matches directly"""
+    # Mock DataFrame
+    import pandas as pd
+    mock_df = pd.DataFrame({
+        'Date': ['15/08/2025', '16/08/2025'],
+        'HomeTeam': ['Arsenal', 'Chelsea'],
+        'AwayTeam': ['Liverpool', 'Arsenal'],
+        'FTHG': [2, 1],
+        'FTAG': [1, 1],
+        'FTR': ['H', 'D']
+    })
+    mock_load_data.return_value = mock_df
+    
+    matches = get_team_recent_matches(mock_df, "Arsenal", 3)
+    assert len(matches) == 2
+    
+    # Check first match (should be oldest - 15/08/2025)
+    match1 = matches[0]
+    assert match1['opponent'] == 'Liverpool'
+    assert match1['result'] == 'W'
+    assert match1['home'] == True
+    assert match1['score'] == '2-1'
+    
+    # Check second match (should be newest - 16/08/2025)
+    match2 = matches[1]
+    assert match2['opponent'] == 'Chelsea'
+    assert match2['result'] == 'D'
+    assert match2['home'] == False
+    assert match2['score'] == '1-1'

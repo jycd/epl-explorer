@@ -28,5 +28,9 @@ def team_detail():
 def match_details():
     return render_template('match_details.html')
 
+@app.route('/average-stats')
+def average_stats():
+    return render_template('average_stats.html')
+
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=5001)

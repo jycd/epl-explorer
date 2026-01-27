@@ -4,79 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Match Details</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f9;
-            color: #333;
-        }
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border-radius: 10px;
-        }
-        .nav {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .nav a {
-            text-decoration: none;
-            color: #007bff;
-            font-weight: bold;
-        }
-        .nav a:hover {
-            text-decoration: underline;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-        }
-        tr:hover {
-            background-color: #f1f1f1;
-        }
-        .win {
-            color: green;
-            font-weight: bold;
-        }
-        .loss {
-            color: red;
-            font-weight: bold;
-        }
-        .draw {
-            color: orange;
-            font-weight: bold;
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/match-details.css">
+</head>
 </head>
 <body>
 
 <div class="container">
-    <div class="nav">
-        <a href="#" id="backLink">Back to Team Detail</a>
+    <div class="tabs">
+        <a href="/" class="tab">Standings</a>
+        <a href="/team-history" class="tab">Team History</a>
+        <a href="/average-stats" class="tab">Average Stats</a>
     </div>
     <h1 id="pageTitle">Match Details</h1>
     
-    <div id="loading">Loading...</div>
-    <div id="error-message" style="color: red; text-align: center;"></div>
+    <div id="loading" class="loading">Loading...</div>
+    <div id="error-message" class="error"></div>
 
     <table id="matchesTable" style="display: none;">
         <thead>
@@ -100,10 +44,13 @@
         const team = urlParams.get('team');
         const opponent = urlParams.get('opponent');
 
+        // Set up navigation back to team detail if team is provided
         if (team) {
-            document.getElementById('backLink').href = `/team-detail?team=${encodeURIComponent(team)}`;
-        } else {
-            document.getElementById('backLink').href = `/team-detail`;
+            // Create a back button dynamically
+            const backButton = document.createElement('div');
+            backButton.className = 'nav';
+            backButton.innerHTML = `<a href="/team-detail?team=${encodeURIComponent(team)}">← Back to Team Detail</a>`;
+            document.querySelector('.container').insertBefore(backButton, document.querySelector('.tabs'));
         }
 
         if (!team || !opponent) {
@@ -149,7 +96,7 @@
                         <td>${match.home_team}</td>
                         <td>${match.fthg} - ${match.ftag}</td>
                         <td>${match.away_team}</td>
-                        <td class="${resultClass}">${resultText}</td>
+                        <td><span class="match-result ${resultClass}">${resultText}</span></td>
                     `;
                     tbody.appendChild(row);
                 });
