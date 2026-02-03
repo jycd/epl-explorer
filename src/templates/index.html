@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/common.css">
     <link rel="stylesheet" href="/static/css/home-page.css">
+    <script src="/static/js/team-logos.js"></script>
 </head>
 <body>
 
@@ -127,7 +128,6 @@
             try {
                 return JSON.parse(cached);
             } catch (e) {
-                console.warn('Invalid cached data, clearing:', cacheKey);
                 sessionStorage.removeItem(cacheKey);
                 sessionStorage.removeItem(`${cacheKey}_time`);
             }
@@ -171,7 +171,6 @@
             }
         });
         updateCacheStatus();
-        console.log('All frontend cache cleared');
     }
 
     function updateCacheStatus() {
@@ -193,14 +192,12 @@
         // Try to get from cache first
         const cachedData = getCachedData(url);
         if (cachedData) {
-            console.log(`Using cached data for: ${url}`);
             updateCacheStatus();
             return cachedData;
         }
 
         // Fetch from API
         try {
-            console.log(`Fetching fresh data for: ${url}`);
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -433,7 +430,8 @@
             row.innerHTML = `
                 <td>${team.position}</td>
                 <td style="text-align: left; font-weight: bold;">
-                    <a href="/team-detail?team=${encodeURIComponent(team.team)}" style="text-decoration: none; color: inherit; display: block;">
+                    <a href="/team-detail?team=${encodeURIComponent(team.team)}" class="team-link">
+                        <img src="${getTeamLogo(team.team)}" alt="${team.team}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(team.team)}&background=4a5568&color=fff&size=24'">
                         ${team.team}
                     </a>
                 </td>

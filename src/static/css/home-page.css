@@ -1,5 +1,47 @@
 /* Home Page Specific Styles */
 
+/* Club Logos */
+.club-logo {
+    width: 20px;
+    height: auto;
+    max-height: 20px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 2px;
+    object-fit: contain;
+}
+
+.team-link {
+    display: flex !important;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    font-weight: bold;
+}
+
+.team-link:hover {
+    text-decoration: underline;
+}
+
+/* Skeleton loader adjustments for team column */
+.skeleton-team {
+    height: 20px;
+    width: 160px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.skeleton-team::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 2px;
+}
+
 /* Legend */
 .legend {
     display: flex;
@@ -29,7 +71,6 @@
 .ucl-row { background: var(--ucl-bg); }
 .uel-row { background: var(--uel-bg); }
 .rel-row { background: var(--rel-bg); }
-.eur-row { background: var(--eur-bg); }
 
 /* Standings Table */
 .standings-table {
@@ -252,19 +293,18 @@
     cursor: pointer;
 }
 
-/* Position column styling */
-.position-cell {
+/* Position and Team cells */
+.position-cell, .team-cell {
     font-weight: 600;
     color: #374151;
 }
 
-/* Team name styling */
 .team-cell {
     font-weight: 500;
     color: #1f2937;
 }
 
-/* Stats cells styling */
+/* Stats cells */
 .stats-cell {
     text-align: center;
     font-weight: 500;

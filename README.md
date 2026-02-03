@@ -41,6 +41,20 @@ Data expectations
 - Expected CSV columns: `HomeTeam`, `AwayTeam`, `FTR`, `FTHG`, `FTAG`, `Date`.
 - Many services operate over the most recent 10 season files (sorted reverse) — see `DATA_DIR = "data"` in `src/services.py`.
 
+Club Logos
+----------
+
+The application displays club logos next to team names in the standings table:
+
+- **Source**: Logos are sourced from https://football-logos.cc/england/
+- **Storage**: Local files stored in `logos2/` directory
+- **Coverage**: 40+ English football teams with multiple name variations
+- **Display**: 24x24px with proper aspect ratios and responsive design
+- **Fallback**: UI avatars for teams without local logos
+- **Serving**: Flask route `/logos/<filename>` serves logo files
+
+Team name variations are supported (e.g., "Manchester United", "Man United", "Man Utd") to ensure logos display correctly regardless of data format.
+
 API examples
 ------------
 

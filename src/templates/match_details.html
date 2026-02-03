@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/common.css">
     <link rel="stylesheet" href="/static/css/match-details.css">
+    <script src="/static/js/team-logos.js"></script>
 </head>
 </head>
 <body>
@@ -59,7 +60,12 @@
             return;
         }
 
-        document.getElementById('pageTitle').innerText = `Matches: ${team} vs ${opponent}`;
+        document.getElementById('pageTitle').innerHTML = `
+            Matches: 
+            <img src="${getTeamLogo(team)}" alt="${team}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(team)}&background=4a5568&color=fff&size=24'">
+            ${team} vs ${opponent}
+            <img src="${getTeamLogo(opponent)}" alt="${opponent}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(opponent)}&background=4a5568&color=fff&size=24'">
+        `;
 
         try {
             const response = await fetch(`/api/match-details/${encodeURIComponent(team)}/${encodeURIComponent(opponent)}`);
@@ -104,7 +110,6 @@
             }
 
         } catch (error) {
-            console.error('Error:', error);
             document.getElementById('error-message').innerText = 'Error loading match details.';
         } finally {
             document.getElementById('loading').style.display = 'none';
