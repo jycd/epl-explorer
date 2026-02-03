@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/common.css">
     <link rel="stylesheet" href="/static/css/team-detail.css">
+    <script src="/static/js/team-logos.js"></script>
 </head>
 <body>
 
@@ -60,7 +61,10 @@
             return;
         }
 
-        document.getElementById('pageTitle').innerText = `${team} - Team Details`;
+        document.getElementById('pageTitle').innerHTML = `
+            <img src="${getTeamLogo(team)}" alt="${team}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(team)}&background=4a5568&color=fff&size=24'">
+            ${team} - Team Details
+        `;
         errorDiv.innerText = '';
 
         try {
@@ -102,7 +106,6 @@
             }
 
         } catch (error) {
-            console.error('Error:', error);
             errorDiv.innerText = 'Error fetching data. Please try again.';
         }
     }
@@ -124,7 +127,6 @@
             renderMonthlyWinRateChart(currentTeam, data);
             
         } catch (error) {
-            console.error('Error:', error);
             errorDiv.innerText = 'Error updating chart.';
         }
     }
@@ -227,8 +229,8 @@
                 datasets: [{
                     label: 'Win Rate (%)',
                     data: winRates,
-                    backgroundColor: '#667eea',
-                    borderColor: '#667eea',
+                    backgroundColor: winRates.map(rate => rate === 0 ? 'rgba(102, 126, 234, 0.6)' : '#667eea'),
+                    borderColor: winRates.map(rate => rate === 0 ? 'rgba(102, 126, 234, 0.8)' : '#667eea'),
                     borderWidth: 2,
                     hoverBackgroundColor: '#667eea',
                     hoverBorderColor: '#667eea',
@@ -238,6 +240,8 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                barPercentage: 0.8,
+                categoryPercentage: 0.9,
                 plugins: {
                     legend: {
                         display: false
@@ -256,6 +260,7 @@
                     y: {
                         beginAtZero: true,
                         max: 100,
+                        min: 0,
                         ticks: {
                             font: {
                                 size: 12,
@@ -297,6 +302,13 @@
                             display: false
                         }
                     }
+                },
+                onHover: (event, activeElements) => {
+                    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
                 },
                 plugins: {
                     title: {
