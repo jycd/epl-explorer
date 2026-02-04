@@ -9,115 +9,152 @@
     <link rel="stylesheet" href="/static/css/match-details.css">
     <script src="/static/js/team-logos.js"></script>
 </head>
-</head>
 <body>
+    <div class="container">
+        <div class="tabs">
+            <a href="/" class="tab">Standings</a>
+            <a href="/team-history" class="tab">Team History</a>
+            <a href="/average-stats" class="tab">Average Stats</a>
+        </div>
 
-<div class="container">
-    <div class="tabs">
-        <a href="/" class="tab">Standings</a>
-        <a href="/team-history" class="tab">Team History</a>
-        <a href="/average-stats" class="tab">Average Stats</a>
+        <h1 id="pageTitle">Match Details</h1>
+        <div id="matchCount" class="match-count" style="display: none;"></div>
+        <div id="loading" class="loading">Loading...</div>
+        <div id="error-message" class="error"></div>
+
+        <table id="matchesTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Season</th>
+                    <th>Date</th>
+                    <th>Home Team</th>
+                    <th>Score</th>
+                    <th>Away Team</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody id="matchesBody">
+            </tbody>
+        </table>
     </div>
-    <h1 id="pageTitle">Match Details</h1>
-    
-    <div id="loading" class="loading">Loading...</div>
-    <div id="error-message" class="error"></div>
 
-    <table id="matchesTable" style="display: none;">
-        <thead>
-            <tr>
-                <th>Season</th>
-                <th>Date</th>
-                <th>Home Team</th>
-                <th>Score</th>
-                <th>Away Team</th>
-                <th>Result</th>
-            </tr>
-        </thead>
-        <tbody id="matchesBody">
-        </tbody>
-    </table>
-</div>
+    <script>
+        async function loadMatchDetails() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const team = urlParams.get('team');
+            const opponent = urlParams.get('opponent');
+            const month = urlParams.get('month');
+            const season = urlParams.get('season');
 
-<script>
-    async function loadMatchDetails() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const team = urlParams.get('team');
-        const opponent = urlParams.get('opponent');
-
-        // Set up navigation back to team detail if team is provided
-        if (team) {
-            // Create a back button dynamically
-            const backButton = document.createElement('div');
-            backButton.className = 'nav';
-            backButton.innerHTML = `<a href="/team-detail?team=${encodeURIComponent(team)}">← Back to Team Detail</a>`;
-            document.querySelector('.container').insertBefore(backButton, document.querySelector('.tabs'));
-        }
-
-        if (!team || !opponent) {
-            document.getElementById('error-message').innerText = 'Missing team or opponent information.';
-            document.getElementById('loading').style.display = 'none';
-            return;
-        }
-
-        document.getElementById('pageTitle').innerHTML = `
-            Matches: 
-            <img src="${getTeamLogo(team)}" alt="${team}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(team)}&background=4a5568&color=fff&size=24'">
-            ${team} vs ${opponent}
-            <img src="${getTeamLogo(opponent)}" alt="${opponent}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(opponent)}&background=4a5568&color=fff&size=24'">
-        `;
-
-        try {
-            const response = await fetch(`/api/match-details/${encodeURIComponent(team)}/${encodeURIComponent(opponent)}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch match details');
+            // Set up navigation back to team detail if team is provided
+            if (team) {
+                // Create a back button dynamically
+                const backButton = document.createElement('div');
+                backButton.className = 'nav';
+                
+                // Build back URL with season parameter if it exists
+                let backUrl = `/team-detail?team=${encodeURIComponent(team)}`;
+                if (season) {
+                    backUrl += `&season=${encodeURIComponent(season)}`;
+                }
+                
+                backButton.innerHTML = `<a href="${backUrl}">← Back to Team Detail</a>`;
+                document.querySelector('.container').insertBefore(backButton, document.querySelector('.tabs'));
             }
-            const matches = await response.json();
+
+            let matches = [];
             
-            const tbody = document.getElementById('matchesBody');
-            tbody.innerHTML = '';
-
-            if (matches.length === 0) {
-                document.getElementById('error-message').innerText = 'No matches found.';
-            } else {
-                matches.forEach(match => {
-                    const row = document.createElement('tr');
-                    
-                    let resultText = '';
-                    let resultClass = '';
-                    
-                    if (match.home_team === team) {
-                        if (match.ftr === 'H') { resultText = 'Win'; resultClass = 'win'; }
-                        else if (match.ftr === 'D') { resultText = 'Draw'; resultClass = 'draw'; }
-                        else { resultText = 'Loss'; resultClass = 'loss'; }
-                    } else {
-                        if (match.ftr === 'A') { resultText = 'Win'; resultClass = 'win'; }
-                        else if (match.ftr === 'D') { resultText = 'Draw'; resultClass = 'draw'; }
-                        else { resultText = 'Loss'; resultClass = 'loss'; }
+            try {
+                if (month) {
+                    // Load matches by month
+                    let url = `/api/team-matches-by-month/${encodeURIComponent(team)}/${encodeURIComponent(month)}`;
+                    if (season) {
+                        url += `?season=${encodeURIComponent(season)}`;
                     }
-
-                    row.innerHTML = `
-                        <td>${match.season}</td>
-                        <td>${match.date}</td>
-                        <td>${match.home_team}</td>
-                        <td>${match.fthg} - ${match.ftag}</td>
-                        <td>${match.away_team}</td>
-                        <td><span class="match-result ${resultClass}">${resultText}</span></td>
+                    
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch monthly matches');
+                    }
+                    matches = await response.json();
+                    
+                    // Update page title for month view
+                    document.getElementById('pageTitle').innerHTML = `
+                        Matches: 
+                        <img src="${getTeamLogo(team)}" alt="${team}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(team)}&background=4a5568&color=fff&size=24'">
+                        ${team} - ${month}${season ? ' ' + season : ''}
                     `;
-                    tbody.appendChild(row);
-                });
-                document.getElementById('matchesTable').style.display = 'table';
+                } else if (team && opponent) {
+                    // Load matches by opponent (existing functionality)
+                    const response = await fetch(`/api/match-details/${encodeURIComponent(team)}/${encodeURIComponent(opponent)}`);
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch match details');
+                    }
+                    matches = await response.json();
+                    
+                    document.getElementById('pageTitle').innerHTML = `
+                        Matches: 
+                        <img src="${getTeamLogo(team)}" alt="${team}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(team)}&background=4a5568&color=fff&size=24'">
+                        ${team} vs ${opponent}
+                        <img src="${getTeamLogo(opponent)}" alt="${opponent}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(opponent)}&background=4a5568&color=fff&size=24'">
+                    `;
+                } else {
+                    document.getElementById('error-message').innerText = 'Missing required information. Please provide either team & opponent or team & month.';
+                    document.getElementById('loading').style.display = 'none';
+                    return;
+                }
+
+                const tbody = document.getElementById('matchesBody');
+                tbody.innerHTML = '';
+
+                // Show match count
+                const matchCountElement = document.getElementById('matchCount');
+                matchCountElement.textContent = `Total Matches: ${matches.length}`;
+                matchCountElement.style.display = 'block';
+
+                if (matches.length === 0) {
+                    document.getElementById('error-message').innerText = 'No matches found.';
+                    matchCountElement.style.display = 'none';
+                } else {
+                    matches.forEach(match => {
+                        const row = document.createElement('tr');
+                        
+                        let resultText = '';
+                        let resultClass = '';
+                        
+                        if (match.home_team === team) {
+                            if (match.ftr === 'H') { resultText = 'Win'; resultClass = 'win'; }
+                            else if (match.ftr === 'D') { resultText = 'Draw'; resultClass = 'draw'; }
+                            else { resultText = 'Loss'; resultClass = 'loss'; }
+                        } else {
+                            if (match.ftr === 'A') { resultText = 'Win'; resultClass = 'win'; }
+                            else if (match.ftr === 'D') { resultText = 'Draw'; resultClass = 'draw'; }
+                            else { resultText = 'Loss'; resultClass = 'loss'; }
+                        }
+
+                        row.innerHTML = `
+                            <td>${match.season}</td>
+                            <td>${match.date}</td>
+                            <td>${match.home_team}</td>
+                            <td>${match.fthg} - ${match.ftag}</td>
+                            <td>${match.away_team}</td>
+                            <td><span class="match-result ${resultClass}">${resultText}</span></td>
+                        `;
+
+                        tbody.appendChild(row);
+                    });
+
+                    document.getElementById('matchesTable').style.display = 'table';
+                }
+
+            } catch (error) {
+                document.getElementById('error-message').innerText = 'Error loading match details.';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
             }
-
-        } catch (error) {
-            document.getElementById('error-message').innerText = 'Error loading match details.';
-        } finally {
-            document.getElementById('loading').style.display = 'none';
         }
-    }
 
-    window.onload = loadMatchDetails;
-</script>
-
+        window.onload = loadMatchDetails;
+    </script>
 </body>
 </html>

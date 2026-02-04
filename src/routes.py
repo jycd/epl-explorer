@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+
 from src.services import (
     get_season_stats_service,
     get_standings_service,
@@ -11,10 +12,14 @@ from src.services import (
     get_team_win_rate_against_others_service,
     get_team_standing_history_service,
     get_team_average_match_statistics_service,
-    clear_cache
+    get_team_matches_by_month_service,
+    get_match_details_service,
+    clear_cache,
+    _cache
 )
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
 
 @api_bp.route('/stats/<season>', methods=['GET'])
 def get_season_stats(season):
@@ -23,15 +28,15 @@ def get_season_stats(season):
         return jsonify({"error": "Season not found"}), 404
     return jsonify(stats)
 
+
 @api_bp.route('/standings/<season>', methods=['GET'])
 def get_season_standings(season):
-    from flask import request
     include_recent = request.args.get('include_recent', 'false').lower() == 'true'
-    
     standings = get_standings_service(season, include_recent_matches=include_recent)
     if standings is None:
         return jsonify({"error": "Season not found"}), 404
     return jsonify(standings)
+
 
 @api_bp.route('/head-to-head/<season>', methods=['GET'])
 def get_head_to_head_stats(season):
@@ -40,48 +45,63 @@ def get_head_to_head_stats(season):
         return jsonify({"error": "Season not found"}), 404
     return jsonify(stats)
 
+
 @api_bp.route('/seasons', methods=['GET'])
 def get_seasons():
     seasons = get_available_seasons_service()
     return jsonify(seasons)
+
 
 @api_bp.route('/team-history/<team_name>', methods=['GET'])
 def get_team_history(team_name):
     history = get_team_history_service(team_name)
     return jsonify(history)
 
+
 @api_bp.route('/team-goal-diff/<team_name>', methods=['GET'])
 def get_team_goal_diff(team_name):
     history = get_team_goal_diff_service(team_name)
     return jsonify(history)
 
+
 @api_bp.route('/team-win-rate-by-month/<team_name>', methods=['GET'])
 def get_team_win_rate_by_month(team_name):
-    from flask import request
     season = request.args.get('season')
     results = get_team_win_rate_by_month_service(team_name, season)
     return jsonify(results)
+
 
 @api_bp.route('/teams', methods=['GET'])
 def get_all_teams():
     teams = get_all_teams_service()
     return jsonify(teams)
 
+
 @api_bp.route('/team-win-rate-against-others/<team_name>', methods=['GET'])
 def get_team_win_rate_against_others(team_name):
     results = get_team_win_rate_against_others_service(team_name)
     return jsonify(results)
 
+
+@api_bp.route('/team-matches-by-month/<team_name>/<month>', methods=['GET'])
+def get_team_matches_by_month(team_name, month):
+    """Get matches for a team in a specific month, optionally filtered by season"""
+    season = request.args.get('season')
+    matches = get_team_matches_by_month_service(team_name, month, season)
+    return jsonify(matches)
+
+
 @api_bp.route('/match-details/<team_name>/<opponent_name>', methods=['GET'])
 def get_match_details(team_name, opponent_name):
-    from src.services import get_match_details_service
     matches = get_match_details_service(team_name, opponent_name)
     return jsonify(matches)
+
 
 @api_bp.route('/team-standing-history/<team_name>', methods=['GET'])
 def get_team_standing_history(team_name):
     history = get_team_standing_history_service(team_name)
     return jsonify(history)
+
 
 @api_bp.route('/team-average-statistics/<team_name>', methods=['GET'])
 def get_team_average_statistics(team_name):
@@ -96,16 +116,17 @@ def get_team_average_statistics(team_name):
     
     return jsonify(stats)
 
+
 @api_bp.route('/cache/clear', methods=['POST'])
 def clear_cache_endpoint():
     """Clear all cache - useful for debugging or when data updates"""
     clear_cache()
     return jsonify({"message": "Cache cleared successfully"})
 
+
 @api_bp.route('/cache/status', methods=['GET'])
 def cache_status():
     """Get cache status for monitoring"""
-    from src.services import _cache
     cache_info = {
         "cache_size": len(_cache),
         "cache_ttl_seconds": 300,

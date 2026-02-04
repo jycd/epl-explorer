@@ -10,15 +10,14 @@
     <script src="/static/js/team-logos.js"></script>
 </head>
 <body>
-
     <div class="container">
         <div class="tabs">
             <a href="/" class="tab">Standings</a>
             <a href="/team-history" class="tab">Team History</a>
             <a href="/average-stats" class="tab">Average Stats</a>
         </div>
+
         <h1 id="pageTitle">Team Detail</h1>
-        
         <div id="error-message" class="error"></div>
 
         <div class="chart-container">
@@ -27,9 +26,8 @@
             </div>
             <canvas id="opponentWinRateChart"></canvas>
         </div>
-        
+
         <h2>Win Rate by Month</h2>
-        
         <div class="controls">
             <label for="seasonSelect">Select Season:</label>
             <select id="seasonSelect" onchange="updateMonthlyChart()">
@@ -45,311 +43,336 @@
         </div>
     </div>
 
-<script>
-    let opponentWinRateChartInstance = null;
-    let monthlyWinRateChartInstance = null;
-    let currentTeam = null;
+    <script>
+        let opponentWinRateChartInstance = null;
+        let monthlyWinRateChartInstance = null;
+        let currentTeam = null;
 
-    async function fetchData() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const team = urlParams.get('team');
-        currentTeam = team;
-        const errorDiv = document.getElementById('error-message');
-        
-        if (!team) {
-            errorDiv.innerText = 'No team specified.';
-            return;
-        }
+        async function fetchData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const team = urlParams.get('team');
+            const seasonFromUrl = urlParams.get('season');
+            currentTeam = team;
+            const errorDiv = document.getElementById('error-message');
 
-        document.getElementById('pageTitle').innerHTML = `
-            <img src="${getTeamLogo(team)}" alt="${team}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(team)}&background=4a5568&color=fff&size=24'">
-            ${team} - Team Details
-        `;
-        errorDiv.innerText = '';
-
-        try {
-            // Fetch Seasons
-            const seasonsResponse = await fetch('/api/seasons');
-            const seasons = await seasonsResponse.json();
-            const seasonSelect = document.getElementById('seasonSelect');
-            seasons.forEach(season => {
-                const option = document.createElement('option');
-                option.value = season;
-                option.text = season;
-                seasonSelect.appendChild(option);
-            });
-
-            // Fetch Opponent Win Rates
-            const opponentResponse = await fetch(`/api/team-win-rate-against-others/${encodeURIComponent(team)}`);
-            const monthlyResponse = await fetch(`/api/team-win-rate-by-month/${encodeURIComponent(team)}`);
-
-            if (!opponentResponse.ok || !monthlyResponse.ok) {
-                throw new Error('Failed to fetch data');
-            }
-            
-            const opponentData = await opponentResponse.json();
-            const monthlyData = await monthlyResponse.json();
-
-            if (opponentData.length === 0 && monthlyData.length === 0) {
-                errorDiv.innerText = 'No data found for this team.';
-                if (opponentWinRateChartInstance) opponentWinRateChartInstance.destroy();
-                if (monthlyWinRateChartInstance) monthlyWinRateChartInstance.destroy();
+            if (!team) {
+                errorDiv.innerText = 'No team specified.';
                 return;
             }
 
-            if (opponentData.length > 0) {
-                renderOpponentWinRateChart(team, opponentData);
+            document.getElementById('pageTitle').innerHTML = `
+                <img src="${getTeamLogo(team)}" alt="${team}" class="club-logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(team)}&background=4a5568&color=fff&size=24'">
+                ${team} - Team Details
+            `;
+            errorDiv.innerText = '';
+
+            try {
+                // Fetch Seasons
+                const seasonsResponse = await fetch('/api/seasons');
+                const seasons = await seasonsResponse.json();
+                const seasonSelect = document.getElementById('seasonSelect');
+
+                seasons.forEach(season => {
+                    const option = document.createElement('option');
+                    option.value = season;
+                    option.text = season;
+                    seasonSelect.appendChild(option);
+                });
+
+                // Set season from URL if provided
+                if (seasonFromUrl) {
+                    seasonSelect.value = seasonFromUrl;
+                }
+
+                // Fetch Opponent Win Rates
+                const opponentResponse = await fetch(`/api/team-win-rate-against-others/${encodeURIComponent(team)}`);
+                
+                // Fetch Monthly Win Rates with season parameter if available
+                let monthlyUrl = `/api/team-win-rate-by-month/${encodeURIComponent(team)}`;
+                if (seasonFromUrl) {
+                    monthlyUrl += `?season=${seasonFromUrl}`;
+                }
+                const monthlyResponse = await fetch(monthlyUrl);
+
+                if (!opponentResponse.ok || !monthlyResponse.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+
+                const opponentData = await opponentResponse.json();
+                const monthlyData = await monthlyResponse.json();
+
+                if (opponentData.length === 0 && monthlyData.length === 0) {
+                    errorDiv.innerText = 'No data found for this team.';
+                    if (opponentWinRateChartInstance) opponentWinRateChartInstance.destroy();
+                    if (monthlyWinRateChartInstance) monthlyWinRateChartInstance.destroy();
+                    return;
+                }
+
+                if (opponentData.length > 0) {
+                    renderOpponentWinRateChart(team, opponentData);
+                }
+
+                if (monthlyData.length > 0) {
+                    renderMonthlyWinRateChart(team, monthlyData);
+                }
+
+            } catch (error) {
+                errorDiv.innerText = 'Error fetching data. Please try again.';
             }
-            
-            if (monthlyData.length > 0) {
-                renderMonthlyWinRateChart(team, monthlyData);
+        }
+
+        async function updateMonthlyChart() {
+            const season = document.getElementById('seasonSelect').value;
+            const errorDiv = document.getElementById('error-message');
+
+            try {
+                let url = `/api/team-win-rate-by-month/${encodeURIComponent(currentTeam)}`;
+                if (season) {
+                    url += `?season=${season}`;
+                }
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch monthly data');
+
+                const data = await response.json();
+                renderMonthlyWinRateChart(currentTeam, data);
+
+            } catch (error) {
+                errorDiv.innerText = 'Error updating chart.';
+            }
+        }
+
+        function renderMonthlyWinRateChart(team, data) {
+            const ctx = document.getElementById('monthlyWinRateChart').getContext('2d');
+
+            if (monthlyWinRateChartInstance) {
+                monthlyWinRateChartInstance.destroy();
             }
 
-        } catch (error) {
-            errorDiv.innerText = 'Error fetching data. Please try again.';
-        }
-    }
+            const labels = data.map(d => d.month);
+            const winRates = data.map(d => d.win_rate);
+            const matches = data.map(d => d.matches);
 
-    async function updateMonthlyChart() {
-        const season = document.getElementById('seasonSelect').value;
-        const errorDiv = document.getElementById('error-message');
-        
-        try {
-            let url = `/api/team-win-rate-by-month/${encodeURIComponent(currentTeam)}`;
-            if (season) {
-                url += `?season=${season}`;
-            }
-            
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch monthly data');
-            
-            const data = await response.json();
-            renderMonthlyWinRateChart(currentTeam, data);
-            
-        } catch (error) {
-            errorDiv.innerText = 'Error updating chart.';
-        }
-    }
+            // Generate colors
+            const backgroundColors = labels.map((_, index) => {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                const hue = (index * 360 / labels.length) % 360;
+                gradient.addColorStop(0, `hsla(${hue}, 70%, 60%, 0.8)`);
+                gradient.addColorStop(1, `hsla(${hue}, 70%, 40%, 0.8)`);
+                return gradient;
+            });
 
-    function renderMonthlyWinRateChart(team, data) {
-        const ctx = document.getElementById('monthlyWinRateChart').getContext('2d');
-        
-        if (monthlyWinRateChartInstance) {
-            monthlyWinRateChartInstance.destroy();
-        }
-
-        const labels = data.map(d => d.month);
-        const winRates = data.map(d => d.win_rate);
-        const matches = data.map(d => d.matches);
-
-        // Generate colors
-        const backgroundColors = labels.map((_, index) => {
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            const hue = (index * 360 / labels.length) % 360;
-            gradient.addColorStop(0, `hsla(${hue}, 70%, 60%, 0.8)`);
-            gradient.addColorStop(1, `hsla(${hue}, 70%, 40%, 0.8)`);
-            return gradient;
-        });
-
-        monthlyWinRateChartInstance = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Win Rate (%)',
-                    data: winRates,
-                    backgroundColor: backgroundColors,
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 15,
-                            usePointStyle: true,
-                            font: {
-                                size: 12
+            monthlyWinRateChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Win Rate (%)',
+                        data: winRates,
+                        backgroundColor: backgroundColors,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
                             }
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: `Win Rate by Month`,
-                        font: {
-                            size: 16
                         },
-                        align: 'center',
-                        padding: {
-                            bottom: 20
+                        title: {
+                            display: true,
+                            text: `Win Rate by Month`,
+                            font: {
+                                size: 16
+                            },
+                            align: 'center',
+                            padding: {
+                                bottom: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: 'var(--chart-purple)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const value = context.raw;
+                                    const m = matches[index];
+                                    return `${context.label}: ${value}% (Matches: ${m})`;
+                                }
+                            }
                         }
                     },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        borderColor: 'var(--chart-purple)',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        padding: 12,
-                        callbacks: {
-                            label: function(context) {
-                                const index = context.dataIndex;
-                                const value = context.raw;
-                                const m = matches[index];
-                                return `${context.label}: ${value}% (Matches: ${m})`;
+                    onClick: (e) => {
+                        const points = monthlyWinRateChartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+                        if (points.length) {
+                            const firstPoint = points[0];
+                            const month = monthlyWinRateChartInstance.data.labels[firstPoint.index];
+                            const season = document.getElementById('seasonSelect').value;
+                            
+                            // Navigate to match details page for the selected month
+                            let url = `/match-details?team=${encodeURIComponent(team)}&month=${encodeURIComponent(month)}`;
+                            if (season) {
+                                url += `&season=${encodeURIComponent(season)}`;
                             }
+                            window.location.href = url;
                         }
                     }
                 }
-            }
-        });
-    }
-
-    function renderOpponentWinRateChart(team, data) {
-        const ctx = document.getElementById('opponentWinRateChart').getContext('2d');
-        
-        if (opponentWinRateChartInstance) {
-            opponentWinRateChartInstance.destroy();
+            });
         }
 
-        // Take top 20 opponents for readability
-        const topData = data.slice(0, 20);
-        const labels = topData.map(d => d.opponent);
-        const winRates = topData.map(d => d.win_rate);
-        const matches = topData.map(d => d.matches);
+        function renderOpponentWinRateChart(team, data) {
+            const ctx = document.getElementById('opponentWinRateChart').getContext('2d');
 
-        opponentWinRateChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Win Rate (%)',
-                    data: winRates,
-                    backgroundColor: winRates.map(rate => rate === 0 ? 'rgba(102, 126, 234, 0.6)' : '#667eea'),
-                    borderColor: winRates.map(rate => rate === 0 ? 'rgba(102, 126, 234, 0.8)' : '#667eea'),
-                    borderWidth: 2,
-                    hoverBackgroundColor: '#667eea',
-                    hoverBorderColor: '#667eea',
-                    hoverBorderWidth: 3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                barPercentage: 0.8,
-                categoryPercentage: 0.9,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        borderColor: 'var(--chart-purple)',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        padding: 12
-                    }
+            if (opponentWinRateChartInstance) {
+                opponentWinRateChartInstance.destroy();
+            }
+
+            // Take top 20 opponents for readability
+            const topData = data.slice(0, 20);
+            const labels = topData.map(d => d.opponent);
+            const winRates = topData.map(d => d.win_rate);
+            const matches = topData.map(d => d.matches);
+
+            opponentWinRateChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Win Rate (%)',
+                        data: winRates,
+                        backgroundColor: winRates.map(rate => rate === 0 ? 'rgba(102, 126, 234, 0.6)' : '#667eea'),
+                        borderColor: winRates.map(rate => rate === 0 ? 'rgba(102, 126, 234, 0.8)' : '#667eea'),
+                        borderWidth: 2,
+                        hoverBackgroundColor: '#667eea',
+                        hoverBorderColor: '#667eea',
+                        hoverBorderWidth: 3
+                    }]
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        min: 0,
-                        ticks: {
-                            font: {
-                                size: 12,
-                                weight: '500'
-                            },
-                            color: 'var(--text-muted)'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Win Rate (%)',
-                            font: {
-                                size: 14,
-                                weight: '600'
-                            },
-                            color: 'var(--text-primary)'
-                        },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            font: {
-                                size: 12,
-                                weight: '500'
-                            },
-                            color: 'var(--text-muted)'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Opponent',
-                            font: {
-                                size: 14,
-                                weight: '600'
-                            },
-                            color: 'var(--text-primary)'
-                        },
-                        grid: {
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.9,
+                    plugins: {
+                        legend: {
                             display: false
-                        }
-                    }
-                },
-                onHover: (event, activeElements) => {
-                    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: `Win Rate Against Opponents (Last 10 Seasons) - ${team}`,
-                        font: {
-                            size: 16,
-                            weight: '600'
                         },
-                        color: 'var(--text-primary)',
-                        padding: {
-                            bottom: 20
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            afterLabel: function(context) {
-                                const index = context.dataIndex;
-                                const m = matches[index];
-                                const wr = winRates[index];
-                                return `Win Rate: ${wr}% (Matches: ${m})`;
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: 'var(--chart-purple)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            padding: 12
+                        },
+                        title: {
+                            display: true,
+                            text: `Win Rate Against Opponents (Last 10 Seasons) - ${team}`,
+                            font: {
+                                size: 16,
+                                weight: '600'
+                            },
+                            color: 'var(--text-primary)',
+                            padding: {
+                                bottom: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const index = context.dataIndex;
+                                    const m = matches[index];
+                                    const wr = winRates[index];
+                                    return `Win Rate: ${wr}% (Matches: ${m})`;
+                                }
                             }
                         }
-                    }
-                },
-                onClick: (e) => {
-                    const points = opponentWinRateChartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
-                    if (points.length) {
-                        const firstPoint = points[0];
-                        const label = opponentWinRateChartInstance.data.labels[firstPoint.index];
-                        // Navigate to match details page
-                        window.location.href = `/match-details?team=${encodeURIComponent(team)}&opponent=${encodeURIComponent(label)}`;
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            min: 0,
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: 'var(--text-muted)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Win Rate (%)',
+                                font: {
+                                    size: 14,
+                                    weight: '600'
+                                },
+                                color: 'var(--text-primary)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: 'var(--text-muted)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Opponent',
+                                font: {
+                                    size: 14,
+                                    weight: '600'
+                                },
+                                color: 'var(--text-primary)'
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    onHover: (event, activeElements) => {
+                        event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    onClick: (e) => {
+                        const points = opponentWinRateChartInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+                        if (points.length) {
+                            const firstPoint = points[0];
+                            const label = opponentWinRateChartInstance.data.labels[firstPoint.index];
+                            // Navigate to match details page
+                            window.location.href = `/match-details?team=${encodeURIComponent(team)}&opponent=${encodeURIComponent(label)}`;
+                        }
                     }
                 }
-            }
-        });
-    }
-    
-    // Load data on page load
-    window.onload = fetchData;
-</script>
+            });
+        }
 
+        // Load data on page load
+        window.onload = fetchData;
+    </script>
 </body>
 </html>

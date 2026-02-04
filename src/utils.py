@@ -5,7 +5,6 @@ from functools import lru_cache
 @lru_cache(maxsize=32)
 def load_data(season, data_dir="data"):
     """Load data for a specific season."""
-    # Season format expected: "2526", "2425", etc.
     file_path = os.path.join(data_dir, f"{season}_E0.csv")
     if not os.path.exists(file_path):
         return None
@@ -78,31 +77,28 @@ def calculate_team_stats(df):
                 "wins": int(h['wins']),
                 "draws": int(h['draws']),
                 "losses": int(h['losses']),
-                "win_rate": calc_rate(h['wins'], h['matches']),
-                "draw_rate": calc_rate(h['draws'], h['matches']),
-                "loss_rate": calc_rate(h['losses'], h['matches']),
                 "goals_for": int(h['goals_for']),
-                "goals_against": int(h['goals_against'])
+                "goals_against": int(h['goals_against']),
+                "goal_difference": int(h['goals_for'] - h['goals_against']),
+                "points": int((h['wins'] * 3) + h['draws']),
+                "win_rate": calc_rate(h['wins'], h['matches'])
             },
             "away": {
                 "matches": int(a['matches']),
                 "wins": int(a['wins']),
                 "draws": int(a['draws']),
                 "losses": int(a['losses']),
-                "win_rate": calc_rate(a['wins'], a['matches']),
-                "draw_rate": calc_rate(a['draws'], a['matches']),
-                "loss_rate": calc_rate(a['losses'], a['matches']),
                 "goals_for": int(a['goals_for']),
-                "goals_against": int(a['goals_against'])
+                "goals_against": int(a['goals_against']),
+                "goal_difference": int(a['goals_for'] - a['goals_against']),
+                "points": int((a['wins'] * 3) + a['draws']),
+                "win_rate": calc_rate(a['wins'], a['matches'])
             },
             "overall": {
                 "matches": int(total_matches),
                 "wins": int(total_wins),
                 "draws": int(total_draws),
                 "losses": int(total_losses),
-                "win_rate": calc_rate(total_wins, total_matches),
-                "draw_rate": calc_rate(total_draws, total_matches),
-                "loss_rate": calc_rate(total_losses, total_matches),
                 "goals_for": int(total_goals_for),
                 "goals_against": int(total_goals_against),
                 "goal_difference": int(goal_difference),
