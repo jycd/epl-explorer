@@ -102,10 +102,13 @@ def calculate_team_stats(df):
                 "goals_for": int(total_goals_for),
                 "goals_against": int(total_goals_against),
                 "goal_difference": int(goal_difference),
-                "points": int(points)
+                "points": int(points),
+                "win_rate": calc_rate(total_wins, total_matches),
+                "draw_rate": calc_rate(total_draws, total_matches),
+                "loss_rate": calc_rate(total_losses, total_matches)
             }
         })
     
-    # Sort by overall win rate descending
-    stats.sort(key=lambda x: x['overall']['win_rate'], reverse=True)
+    # Sort by overall points descending, then goal difference, then goals for
+    stats.sort(key=lambda x: (x['overall']['points'], x['overall']['goal_difference'], x['overall']['goals_for']), reverse=True)
     return stats
